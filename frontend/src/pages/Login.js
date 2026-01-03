@@ -137,13 +137,7 @@ const Login = ({ setUser, setView }) => {
                             Create an ID
                         </span>
                     </p>
-                    <div style={loginStyles.demoBox}>
-                        <div style={{fontWeight:'900', color:'#2563eb', marginBottom:'4px'}}>DEMO ACCOUNT</div>
-                        <div style={{display:'flex', justifyContent:'space-between'}}>
-                            <span>User: admin@test.com</span>
-                            <span>Pass: 123456</span>
-                        </div>
-                    </div>
+                    
                 </div>
             </div>
         </div>
