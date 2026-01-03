@@ -2,98 +2,71 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
     <meta name="theme-color" content="#2563eb" />
-    
-    <meta name="title" content="TalentBD | Learn Skills & Earn Rewards">
-    <meta name="description" content="TalentBD - Bangladesh's premier platform to verify skills, earn XP, and secure high-paying remote roles.">
-    
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://talentbd.com/">
-    <meta property="og:title" content="TalentBD | Learn & Earn">
-    <meta property="og:description" content="Verify your talent through AI-audited modules and get paid.">
-    <meta property="og:image" content="%PUBLIC_URL%/og-banner.jpg">
-
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
-    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <meta name="description" content="TalentBD - Bangladesh's premier platform to verify skills and build professional CVs." />
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
-    <title>TalentBD | Learn & Earn</title>
+    <title>TalentBD | CV Architect</title>
 
     <style>
-      /* 1. Global Performance Base */
+      :root {
+        --primary: #2563eb;
+        --bg: #f8fafc;
+      }
+
       body, html {
         margin: 0;
         padding: 0;
-        font-family: 'Inter', system-ui, -apple-system, sans-serif;
-        background-color: #f8fafc;
+        font-family: 'Inter', system-ui, sans-serif;
+        background-color: var(--bg);
         color: #0f172a;
-        height: 100%;
-        scroll-behavior: smooth;
-        -webkit-font-smoothing: antialiased;
+        height: 100vh;
+        overflow: hidden; /* Prevent double scrollbars with the CV editor */
       }
 
-      * { box-sizing: border-box; }
+      #root {
+        height: 100%;
+      }
 
-      /* 2. Professional Skeleton Loader */
-      #root:empty {
+      /* Fixed Loading State */
+      .loading-container {
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
         height: 100vh;
-        background: #f8fafc;
       }
 
       .loading-spinner {
         width: 40px;
         height: 40px;
         border: 4px solid #e2e8f0;
-        border-top: 4px solid #2563eb;
+        border-top: 4px solid var(--primary);
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
-        margin-bottom: 16px;
       }
 
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
+      @keyframes spin { 100% { transform: rotate(360deg); } }
 
       .loading-text {
+        margin-top: 16px;
         color: #64748b;
-        font-weight: 600;
         font-size: 14px;
-        letter-spacing: 0.5px;
-        animation: pulse 1.5s ease-in-out infinite;
+        font-weight: 600;
+        letter-spacing: 1px;
       }
-
-      @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
-      }
-
-      /* 3. Custom Scrollbar for 2026 UI */
-      ::-webkit-scrollbar { width: 10px; }
-      ::-webkit-scrollbar-track { background: #f1f5f9; }
-      ::-webkit-scrollbar-thumb { 
-        background: #cbd5e1; 
-        border-radius: 10px; 
-        border: 2px solid #f1f5f9;
-      }
-      ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run TalentBD.</noscript>
-    
     <div id="root">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">TALENTBD ENGINE INITIALIZING...</div>
+        <div class="loading-container">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">INITIALIZING ARCHITECT...</div>
+        </div>
     </div>
   </body>
 </html>
