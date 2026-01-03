@@ -2,27 +2,20 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Briefcase, Lock, CheckCircle, Zap, TrendingUp, X, Sparkles, DollarSign } from 'lucide-react';
 
-const MOCK_JOBS = [
-    { id: 1, title: "React Developer (Bug Fix)", reward: 150, skill: "React JS", type: "Gig", desc: "Fix state management issue in an existing dashboard." },
-    { id: 2, title: "Logo Design Set", reward: 80, skill: "Graphic Design", type: "Task", desc: "Create 3 logo variations for a tech startup." },
-    { id: 3, title: "Python Data Script", reward: 200, skill: "Python", type: "Project", desc: "Automate web scraping for real estate listings." },
-    { id: 4, title: "Landing Page UI", reward: 120, skill: "Graphic Design", type: "Gig", desc: "Design a high-converting page for a marketing agency." }
-];
-
-export default function Jobs({ user, setView }) {
+export default function Jobs({ user, setView, jobs = [] }) {
     const [showSuccess, setShowSuccess] = useState(false);
     const [appliedJob, setAppliedJob] = useState(null);
 
-    // FIXED: Standardized skill matching (Case-insensitive)
+    // Standardized skill matching (Case-insensitive)
     const userSkills = user?.skills?.map(s => s.toLowerCase().trim()) || [];
-    
-    const checkSkill = (requiredSkill) => userSkills.includes(requiredSkill.toLowerCase().trim());
+    const checkSkill = (requiredSkill) => userSkills.includes(requiredSkill?.toLowerCase().trim());
 
-    // STATS LOGIC
-    const potentialEarnings = MOCK_JOBS.reduce((acc, job) => acc + job.reward, 0);
-    const unlockedEarnings = MOCK_JOBS
+    // Filter and Stats Logic
+    const displayJobs = jobs || []; 
+    const potentialEarnings = displayJobs.reduce((acc, job) => acc + (Number(job.reward) || 0), 0);
+    const unlockedEarnings = displayJobs
         .filter(job => checkSkill(job.skill))
-        .reduce((acc, job) => acc + job.reward, 0);
+        .reduce((acc, job) => acc + (Number(job.reward) || 0), 0);
 
     const handleApplyClick = (job) => {
         setAppliedJob(job);
@@ -58,7 +51,7 @@ export default function Jobs({ user, setView }) {
             </header>
 
             <div style={jobStyles.jobGrid}>
-                {MOCK_JOBS.map((job) => {
+                {displayJobs.map((job) => {
                     const isLocked = !checkSkill(job.skill);
 
                     return (
@@ -75,12 +68,12 @@ export default function Jobs({ user, setView }) {
                                     ...jobStyles.typeTag, 
                                     color: isLocked ? '#94a3b8' : '#10b981',
                                     background: isLocked ? '#f8fafc' : '#f0fdf4'
-                                }}>{job.type}</span>
+                                }}>{job.type || 'Gig'}</span>
                                 <div style={jobStyles.priceTag}>${job.reward}</div>
                             </div>
 
                             <h3 style={jobStyles.jobTitle}>{job.title}</h3>
-                            <p style={jobStyles.jobDesc}>{job.desc}</p>
+                            <p style={jobStyles.jobDesc}>{job.desc || `Required Skill: ${job.skill}`}</p>
                             
                             <div style={{
                                 ...jobStyles.skillReq,
@@ -128,12 +121,11 @@ export default function Jobs({ user, setView }) {
                             </div>
                             <h2 style={popupStyles.modalTitle}>Proposal Submitted!</h2>
                             <p style={popupStyles.modalText}>
-                                Your <strong>{appliedJob?.skill} Credentials</strong> and Profile were securely shared with the client.
+                                Your <strong>{appliedJob?.skill} Credentials</strong> were securely shared.
                             </p>
                             
                             <div style={popupStyles.summaryBox}>
-                                <div style={popupStyles.summaryItem}><span>Status:</span> <strong>Pending Review</strong></div>
-                                <div style={popupStyles.summaryItem}><span>Payment:</span> <strong>Escrow Protected</strong></div>
+                                <div style={popupStyles.summaryItem}><span>Status:</span> <strong>Pending</strong></div>
                                 <div style={{...popupStyles.summaryItem, border:'none', color: '#10b981'}}><span>Potential Pay:</span> <strong>${appliedJob?.reward}</strong></div>
                             </div>
                             
@@ -146,6 +138,7 @@ export default function Jobs({ user, setView }) {
     );
 }
 
+// --- ALL REQUIRED STYLES DEFINED HERE ---
 const jobStyles = {
     container: { maxWidth: '1100px', margin: '0 auto', padding: '60px 20px' },
     headerSection: { marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
@@ -163,7 +156,7 @@ const jobStyles = {
     cardTopRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
     typeTag: { padding: '5px 14px', borderRadius: '50px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase' },
     priceTag: { fontSize: '24px', fontWeight: '900', color: '#0f172a' },
-    jobTitle: { margin: '0 0 12px 0', fontSize: '20px', fontWeight: '800', color: '#1e293b', lineHeight: '1.3' },
+    jobTitle: { margin: '0 0 12px 0', fontSize: '20px', fontWeight: '800', color: '#1e293b', lineHeight: '1.4' },
     jobDesc: { fontSize: '14px', color: '#64748b', lineHeight: '1.6', marginBottom: '20px' },
     skillReq: { display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px', borderRadius: '12px' },
     applyBtn: { width: '100%', background: '#2563eb', color: '#fff', border: 'none', padding: '16px', borderRadius: '14px', cursor: 'pointer', fontWeight: '800', fontSize: '15px', boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.3)' },
