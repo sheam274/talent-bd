@@ -1,0 +1,27 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+  "start": "react-scripts start",
+  "build": "react-scripts build",
+  "test": "react-scripts test"
+},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.4",
+    "mongoose": "^9.0.2",
+    "multer": "^2.0.2",
+    "node-cron": "^4.2.1",
+    "pdf-parse": "^2.4.5",
+    "puppeteer": "^24.34.0"
+  },
+  "description": ""
+}
