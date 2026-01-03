@@ -1,64 +1,110 @@
-import React, { useState } from 'react'; // Fixed: Added useState import
-import { motion } from 'framer-motion'; // Fixed: Added motion import
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Briefcase, Lock, CheckCircle, Zap, TrendingUp, X, Sparkles, DollarSign } from 'lucide-react';
 
 const MOCK_JOBS = [
-    { id: 1, title: "React Developer (Bug Fix)", reward: 150, skill: "React JS", type: "Gig" },
-    { id: 2, title: "Logo Design Set", reward: 80, skill: "Graphic Design", type: "Task" },
-    { id: 3, title: "Python Data Script", reward: 200, skill: "Python", type: "Project" },
-    { id: 4, title: "Landing Page UI", reward: 120, skill: "Graphic Design", type: "Gig" }
+    { id: 1, title: "React Developer (Bug Fix)", reward: 150, skill: "React JS", type: "Gig", desc: "Fix state management issue in an existing dashboard." },
+    { id: 2, title: "Logo Design Set", reward: 80, skill: "Graphic Design", type: "Task", desc: "Create 3 logo variations for a tech startup." },
+    { id: 3, title: "Python Data Script", reward: 200, skill: "Python", type: "Project", desc: "Automate web scraping for real estate listings." },
+    { id: 4, title: "Landing Page UI", reward: 120, skill: "Graphic Design", type: "Gig", desc: "Design a high-converting page for a marketing agency." }
 ];
 
-export default function Jobs({ user, onAudit, setView }) {
-    // Fixed: Hooks must be inside the function
+export default function Jobs({ user, setView }) {
     const [showSuccess, setShowSuccess] = useState(false);
     const [appliedJob, setAppliedJob] = useState(null);
+
+    // FIXED: Standardized skill matching (Case-insensitive)
+    const userSkills = user?.skills?.map(s => s.toLowerCase().trim()) || [];
+    
+    const checkSkill = (requiredSkill) => userSkills.includes(requiredSkill.toLowerCase().trim());
+
+    // STATS LOGIC
+    const potentialEarnings = MOCK_JOBS.reduce((acc, job) => acc + job.reward, 0);
+    const unlockedEarnings = MOCK_JOBS
+        .filter(job => checkSkill(job.skill))
+        .reduce((acc, job) => acc + job.reward, 0);
 
     const handleApplyClick = (job) => {
         setAppliedJob(job);
         setShowSuccess(true);
-        // This triggers the visual success state for your FYP
     };
 
     return (
         <div style={jobStyles.container}>
-            <header style={{ marginBottom: '30px' }}>
-                <h2 style={{ margin: 0 }}>Available Earning Opportunities</h2>
-                <p style={{ color: '#64748b' }}>Apply for gigs that match your verified skill set.</p>
+            {/* STATS OVERVIEW */}
+            <div style={jobStyles.statsRow}>
+                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} style={jobStyles.statItem}>
+                    <div style={jobStyles.statIconBox}><TrendingUp size={20} color="#10b981" /></div>
+                    <div>
+                        <span style={jobStyles.statLabel}>Available to Earn</span>
+                        <div style={jobStyles.statValue}>${unlockedEarnings} <small style={jobStyles.statSub}>of ${potentialEarnings}</small></div>
+                    </div>
+                </motion.div>
+                <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={jobStyles.statItem}>
+                    <div style={{...jobStyles.statIconBox, background: '#eff6ff'}}><Zap size={20} color="#2563eb" /></div>
+                    <div>
+                        <span style={jobStyles.statLabel}>Skill Badge Power</span>
+                        <div style={jobStyles.statValue}>{user?.skills?.length || 0} Badges</div>
+                    </div>
+                </motion.div>
+            </div>
+
+            <header style={jobStyles.headerSection}>
+                <div>
+                    <h2 style={jobStyles.pageTitle}>Gig Marketplace</h2>
+                    <p style={jobStyles.pageSubtitle}>Complete micro-tasks that match your verified credentials.</p>
+                </div>
+                <div style={jobStyles.liveBadge}>● LIVE FEED</div>
             </header>
 
             <div style={jobStyles.jobGrid}>
                 {MOCK_JOBS.map((job) => {
-                    const isLocked = !user?.skills?.includes(job.skill);
+                    const isLocked = !checkSkill(job.skill);
 
                     return (
                         <motion.div 
                             key={job.id} 
-                            whileHover={{ y: -5 }} 
+                            whileHover={{ y: -8 }} 
                             style={{
                                 ...jobStyles.jobCard,
-                                borderLeft: isLocked ? '5px solid #cbd5e1' : '5px solid #10b981',
+                                borderTop: isLocked ? '4px solid #e2e8f0' : '4px solid #10b981',
                             }}
                         >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                <div>
-                                    <span style={jobStyles.typeTag}>{job.type}</span>
-                                    <h3 style={{ margin: '10px 0 5px 0' }}>{job.title}</h3>
-                                    <p style={{ fontSize: '13px', color: '#64748b' }}>Required: <strong>{job.skill}</strong></p>
-                                </div>
-                                <div style={jobStyles.rewardBox}>
-                                    <div style={{ fontSize: '12px', color: '#64748b' }}>Payout</div>
-                                    <div style={{ fontSize: '20px', fontWeight: '900', color: '#10b981' }}>${job.reward}</div>
-                                </div>
+                            <div style={jobStyles.cardTopRow}>
+                                <span style={{
+                                    ...jobStyles.typeTag, 
+                                    color: isLocked ? '#94a3b8' : '#10b981',
+                                    background: isLocked ? '#f8fafc' : '#f0fdf4'
+                                }}>{job.type}</span>
+                                <div style={jobStyles.priceTag}>${job.reward}</div>
                             </div>
 
-                            <div style={{ marginTop: '20px' }}>
+                            <h3 style={jobStyles.jobTitle}>{job.title}</h3>
+                            <p style={jobStyles.jobDesc}>{job.desc}</p>
+                            
+                            <div style={{
+                                ...jobStyles.skillReq,
+                                background: isLocked ? '#f8fafc' : '#f0fdf4'
+                            }}>
+                                {isLocked ? <Lock size={14} color="#94a3b8" /> : <CheckCircle size={14} color="#10b981" />}
+                                <span style={{ 
+                                    fontSize: '12px', 
+                                    fontWeight: '700', 
+                                    color: isLocked ? '#64748b' : '#10b981' 
+                                }}>
+                                    {job.skill} Required
+                                </span>
+                            </div>
+
+                            <div style={{ marginTop: 'auto', paddingTop: '20px' }}>
                                 {isLocked ? (
-                                    <div style={jobStyles.lockedBox}>
-                                        <p style={{ fontSize: '12px', margin: '0 0 10px 0' }}>🔒 You need the <strong>{job.skill}</strong> badge to unlock this payout.</p>
-                                        <button onClick={() => setView('learning')} style={jobStyles.learnBtn}>Go to Learning Hub</button>
-                                    </div>
+                                    <button onClick={() => setView('learning')} style={jobStyles.learnBtn}>
+                                        <Zap size={14} /> Get Badge to Unlock
+                                    </button>
                                 ) : (
-                                    <button onClick={() => handleApplyClick(job)} style={jobStyles.applyBtn}>Apply & Earn ${job.reward}</button>
+                                    <button onClick={() => handleApplyClick(job)} style={jobStyles.applyBtn}>
+                                        Apply & Earn
+                                    </button>
                                 )}
                             </div>
                         </motion.div>
@@ -67,42 +113,70 @@ export default function Jobs({ user, onAudit, setView }) {
             </div>
 
             {/* SUCCESS POPUP MODAL */}
-            {showSuccess && (
-                <div style={popupStyles.overlay}>
-                    <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={popupStyles.modal}>
-                        <div style={{ fontSize: '50px', marginBottom: '10px' }}>✅</div>
-                        <h2 style={{ margin: '0 0 10px 0' }}>Application Sent!</h2>
-                        <p style={{ color: '#475569', fontSize: '14px' }}>
-                            Your <strong>Verified {appliedJob?.skill} Badge</strong> was attached to this application.
-                        </p>
-                        <div style={popupStyles.timeline}>
-                            <div style={popupStyles.step}>📅 <strong>Sent:</strong> Today</div>
-                            <div style={popupStyles.step}>🔍 <strong>Review:</strong> AI Matching in progress</div>
-                            <div style={{...popupStyles.step, color: '#10b981'}}>💰 <strong>Payout:</strong> Within 48 Hours</div>
-                        </div>
-                        <button onClick={() => setShowSuccess(false)} style={jobStyles.applyBtn}>Got it!</button>
-                    </motion.div>
-                </div>
-            )}
+            <AnimatePresence>
+                {showSuccess && (
+                    <div style={popupStyles.overlay}>
+                        <motion.div 
+                            initial={{ scale: 0.9, opacity: 0 }} 
+                            animate={{ scale: 1, opacity: 1 }} 
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            style={popupStyles.modal}
+                        >
+                            <button onClick={() => setShowSuccess(false)} style={popupStyles.closeX}><X size={20}/></button>
+                            <div style={popupStyles.successIcon}>
+                                <Sparkles size={32} color="#fff" />
+                            </div>
+                            <h2 style={popupStyles.modalTitle}>Proposal Submitted!</h2>
+                            <p style={popupStyles.modalText}>
+                                Your <strong>{appliedJob?.skill} Credentials</strong> and Profile were securely shared with the client.
+                            </p>
+                            
+                            <div style={popupStyles.summaryBox}>
+                                <div style={popupStyles.summaryItem}><span>Status:</span> <strong>Pending Review</strong></div>
+                                <div style={popupStyles.summaryItem}><span>Payment:</span> <strong>Escrow Protected</strong></div>
+                                <div style={{...popupStyles.summaryItem, border:'none', color: '#10b981'}}><span>Potential Pay:</span> <strong>${appliedJob?.reward}</strong></div>
+                            </div>
+                            
+                            <button onClick={() => setShowSuccess(false)} style={jobStyles.applyBtn}>Continue Browsing</button>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
 
-// --- ALL STYLES DEFINED HERE ---
 const jobStyles = {
-    container: { padding: '20px 0' },
-    jobGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' },
-    jobCard: { background: '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' },
-    typeTag: { background: '#f1f5f9', padding: '4px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: 'bold' },
-    rewardBox: { textAlign: 'right', background: '#f0fdf4', padding: '10px', borderRadius: '8px' },
-    applyBtn: { width: '100%', background: '#10b981', color: '#fff', border: 'none', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' },
-    learnBtn: { width: '100%', background: '#2563eb', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', cursor: 'pointer' },
-    lockedBox: { background: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px dashed #cbd5e1' }
+    container: { maxWidth: '1100px', margin: '0 auto', padding: '60px 20px' },
+    headerSection: { marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
+    pageTitle: { margin: 0, fontSize: '32px', fontWeight: '900', letterSpacing: '-1px' },
+    pageSubtitle: { color: '#64748b', margin: '5px 0 0 0', fontSize: '16px' },
+    liveBadge: { background: '#fef2f2', color: '#ef4444', padding: '6px 12px', borderRadius: '50px', fontSize: '10px', fontWeight: '900', letterSpacing: '1px' },
+    statsRow: { display: 'flex', gap: '20px', marginBottom: '50px' },
+    statItem: { flex: 1, background: '#fff', padding: '24px', borderRadius: '24px', display: 'flex', alignItems: 'center', gap: '18px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' },
+    statIconBox: { width: '48px', height: '48px', background: '#ecfdf5', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+    statLabel: { fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '800' },
+    statValue: { fontSize: '24px', fontWeight: '900', color: '#0f172a', display: 'flex', alignItems: 'baseline', gap: '8px' },
+    statSub: { fontSize:'13px', fontWeight: '600', color:'#94a3b8' },
+    jobGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '30px' },
+    jobCard: { background: '#fff', padding: '30px', borderRadius: '24px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', minHeight: '380px', transition: 'box-shadow 0.3s' },
+    cardTopRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
+    typeTag: { padding: '5px 14px', borderRadius: '50px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase' },
+    priceTag: { fontSize: '24px', fontWeight: '900', color: '#0f172a' },
+    jobTitle: { margin: '0 0 12px 0', fontSize: '20px', fontWeight: '800', color: '#1e293b', lineHeight: '1.3' },
+    jobDesc: { fontSize: '14px', color: '#64748b', lineHeight: '1.6', marginBottom: '20px' },
+    skillReq: { display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px', borderRadius: '12px' },
+    applyBtn: { width: '100%', background: '#2563eb', color: '#fff', border: 'none', padding: '16px', borderRadius: '14px', cursor: 'pointer', fontWeight: '800', fontSize: '15px', boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.3)' },
+    learnBtn: { width: '100%', background: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0', padding: '14px', borderRadius: '14px', cursor: 'pointer', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px' }
 };
 
 const popupStyles = {
-    overlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 },
-    modal: { background: '#fff', padding: '30px', borderRadius: '20px', maxWidth: '400px', width: '90%', textAlign: 'center' },
-    timeline: { textAlign: 'left', background: '#f8fafc', padding: '15px', borderRadius: '12px', margin: '20px 0' },
-    step: { fontSize: '13px', marginBottom: '5px', display: 'block' }
+    overlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.9)', backdropFilter: 'blur(8px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 10000 },
+    modal: { background: '#fff', padding: '50px 40px', borderRadius: '32px', maxWidth: '440px', width: '92%', textAlign: 'center', position: 'relative', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' },
+    closeX: { position: 'absolute', top: '24px', right: '24px', background: 'none', border: 'none', cursor: 'pointer', color: '#cbd5e1' },
+    successIcon: { width: '70px', height: '70px', background: '#10b981', borderRadius: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 25px', transform: 'rotate(-10deg)', boxShadow: '0 15px 30px rgba(16, 185, 129, 0.4)' },
+    modalTitle: { margin: '0 0 10px 0', fontSize: '26px', fontWeight: '900', letterSpacing: '-1px' },
+    modalText: { color: '#64748b', fontSize: '15px', lineHeight: '1.6', margin: '0 0 30px 0' },
+    summaryBox: { textAlign: 'left', background: '#f8fafc', padding: '24px', borderRadius: '20px', marginBottom: '35px', border: '1px solid #e2e8f0' },
+    summaryItem: { display: 'flex', justifyContent: 'space-between', paddingBottom: '12px', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', fontSize: '14px' }
 };
