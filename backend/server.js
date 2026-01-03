@@ -6,30 +6,20 @@ const bcrypt = require('bcryptjs');
 
 const app = express();
 
-// --- DYNAMIC CORS (Fixes Local vs Vercel mismatch) ---
-const allowedOrigins = [
-    'http://localhost:3000',
-    'https://your-frontend-vercel-url.vercel.app' // ADD YOUR VERCEL FRONTEND URL HERE
-];
-
+// --- DYNAMIC CORS ---
+// Replace with your actual frontend URL once deployed
 app.use(cors({
-    origin: function (origin, callback) {
-        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    origin: ["http://localhost:3000", "https://your-frontend.vercel.app"], 
+    methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
 }));
 
 app.use(express.json());
 
 // --- DATABASE CONNECTION ---
-// Use process.env.MONGO_URI for Vercel, fallback to local for dev
 const mongoURI = process.env.MONGO_URI;
 
+// ✅ FIXED: Removed deprecated useNewUrlParser and useUnifiedTopology
 mongoose.connect(mongoURI)
     .then(() => {
         console.log('✅ Connected to MongoDB');
@@ -49,16 +39,13 @@ const UserSchema = new mongoose.Schema({
     savedCV: { type: Object, default: {} }
 }, { timestamps: true });
 
-// Fixed Password Hashing Middleware
 UserSchema.pre('save', async function(next) {
     if (!this.isModified('password')) return next();
     try {
         const salt = await bcrypt.genSalt(10);
         this.password = await bcrypt.hash(this.password, salt);
         next();
-    } catch (err) {
-        next(err);
-    }
+    } catch (err) { next(err); }
 });
 
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
@@ -78,21 +65,22 @@ async function seedAdmin() {
                 points: 500
             });
             await admin.save();
-            console.log(`🏁 Admin created: ${adminEmail}`);
+            console.log('🏁 Admin account seeded');
         }
-    } catch (err) { /* Silently handle for serverless */ }
+    } catch (err) { }
 }
 
 // --- ROUTES ---
-app.get('/', (req, res) => res.send('TalentBD API Active'));
+app.get('/', (req, res) => res.json({ status: "Active", service: "TalentBD API" }));
 
 app.post('/api/signup', async (req, res) => {
     try {
         const { name, email, password, role } = req.body;
-        const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
+        const cleanEmail = email.toLowerCase().trim();
+        const existingUser = await User.findOne({ email: cleanEmail });
         if (existingUser) return res.status(400).json({ error: 'Email already registered' });
 
-        const user = new User({ name, email, password, role: role || 'user' });
+        const user = new User({ name, email: cleanEmail, password, role: role || 'user' });
         await user.save();
         
         const userResponse = user.toObject();
@@ -121,10 +109,26 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// IMPORTANT FOR VERCEL: Export the app
+app.put('/api/users/update-progress', async (req, res) => {
+    try {
+        const { email, skill, points, walletBalance } = req.body;
+        const updatedUser = await User.findOneAndUpdate(
+            { email: email.toLowerCase().trim() },
+            { 
+                $addToSet: { skills: skill.toLowerCase() },
+                $inc: { points: Number(points) || 0, walletBalance: Number(walletBalance) || 0 } 
+            },
+            { new: true }
+        ).select('-password');
+        res.json(updatedUser);
+    } catch (e) {
+        res.status(500).json({ error: 'Update failed' });
+    }
+});
+
+// --- VERCEL EXPORT ---
 module.exports = app;
 
-// Only listen if not in a serverless environment (local dev)
 if (process.env.NODE_ENV !== 'production') {
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => console.log(`🚀 Local Server on port ${PORT}`));
