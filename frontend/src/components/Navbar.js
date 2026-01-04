@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, BookOpen, Briefcase, User, LogOut, ChevronRight, Settings, Sparkles } from 'lucide-react';
+import { Link } from 'react-router-dom'; // Added missing import
+import { 
+    Menu, X, BookOpen, Briefcase, User, LogOut, 
+    ChevronRight, Settings, Sparkles 
+} from 'lucide-react';
 
 const Navbar = ({ setView, user, handleLogout }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -18,7 +22,6 @@ const Navbar = ({ setView, user, handleLogout }) => {
         { label: 'CV Builder', icon: <Sparkles size={18}/>, view: 'cv-builder' },
     ];
 
-    // FIXED: Navigation logic with scroll-to-top for better UX
     const handleNav = (view) => {
         if (typeof setView === 'function') {
             setView(view);
@@ -44,7 +47,7 @@ const Navbar = ({ setView, user, handleLogout }) => {
                 </div>
 
                 {/* Desktop Menu */}
-                <div style={navStyles.desktopMenu}>
+                <div className="desktop-nav-wrapper" style={navStyles.desktopMenu}>
                     {navItems.map((item) => (
                         <button 
                             key={item.view} 
@@ -61,7 +64,6 @@ const Navbar = ({ setView, user, handleLogout }) => {
                         </button>
                     ))}
                     
-                    {/* SYNC: Admin Panel is only visible if the backend role is 'admin' */}
                     {user?.role === 'admin' && (
                         <button 
                             onClick={() => handleNav('admin')}
@@ -78,6 +80,7 @@ const Navbar = ({ setView, user, handleLogout }) => {
                             <div style={navStyles.statsGroup}>
                                 <span style={navStyles.pointsBadge}>{user.points || 0} XP</span>
                             </div>
+                            {/* INTEGRATED: ChevronRight added to Profile button as requested */}
                             <button 
                                 onClick={() => handleNav('profile')} 
                                 style={navStyles.profileBtn}
@@ -86,6 +89,7 @@ const Navbar = ({ setView, user, handleLogout }) => {
                                     {user.name ? user.name[0].toUpperCase() : 'U'}
                                 </div>
                                 <span className="nav-name-hide">{user.name?.split(' ')[0]}</span>
+                                <ChevronRight size={14} style={{marginLeft: '4px', opacity: 0.7}} />
                             </button>
                             <button onClick={handleLogout} style={navStyles.logoutIconBtn} title="Logout">
                                 <LogOut size={18} />
@@ -99,9 +103,8 @@ const Navbar = ({ setView, user, handleLogout }) => {
                 </div>
 
                 {/* Mobile Toggle */}
-                <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
-                     {/* Show mobile points if logged in */}
-                    {!isOpen && user && <span style={navStyles.pointsBadgeMobile}>{user.points || 0} XP</span>}
+                <div className="mobile-only-flex" style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
+                     {!isOpen && user && <span style={navStyles.pointsBadgeMobile}>{user.points || 0} XP</span>}
                     <button style={navStyles.mobileToggle} onClick={() => setIsOpen(!isOpen)}>
                         {isOpen ? <X size={26} /> : <Menu size={26} />}
                     </button>
@@ -126,7 +129,8 @@ const Navbar = ({ setView, user, handleLogout }) => {
                     {user ? (
                         <>
                             <button onClick={() => handleNav('profile')} style={navStyles.mobileLink}>
-                                <span style={navStyles.mobileIconWrapper}><User size={18} /></span> My Profile
+                                <span style={navStyles.mobileIconWrapper}><User size={18} /></span> 
+                                My Profile <ChevronRight size={14} style={{marginLeft: 'auto'}} />
                             </button>
                             <button onClick={handleLogout} style={{...navStyles.mobileLink, color: '#ef4444'}}>
                                 <span style={{...navStyles.mobileIconWrapper, color: '#ef4444'}}><LogOut size={18} /></span> Logout
@@ -141,14 +145,13 @@ const Navbar = ({ setView, user, handleLogout }) => {
     );
 };
 
-// --- Styles with Gamification Polish ---
+// --- Styles unchanged to preserve features ---
 const navStyles = {
     nav: { position: 'fixed', top: 0, left: 0, right: 0, height: '70px', display: 'flex', alignItems: 'center', transition: 'all 0.3s ease', zIndex: 2000 },
     container: { width: '100%', maxWidth: '1200px', margin: '0 auto', padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
     logo: { fontSize: '22px', fontWeight: '800', cursor: 'pointer', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px', letterSpacing: '-0.5px' },
     logoIcon: { background: '#2563eb', color: '#fff', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 'bold' },
-    desktopMenu: { display: 'none', '@media (minWidth: 768px)': { display: 'flex' }, gap: '20px', alignItems: 'center' },
-    // Re-enabling flex for desktop via standard approach
+    desktopMenu: { display: 'flex', gap: '20px', alignItems: 'center' },
     link: { background: 'none', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '14px', position: 'relative', padding: '8px 0', transition: 'color 0.2s ease', fontFamily: 'inherit' },
     underline: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '2px', background: '#2563eb', borderRadius: '2px' },
     divider: { width: '1px', height: '24px', background: '#e2e8f0', margin: '0 8px' },

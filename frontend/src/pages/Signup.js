@@ -32,7 +32,6 @@ export default function Signup({ setView }) {
             
             if (res.ok) {
                 setIsSuccess(true);
-                // Clear any old sessions to prevent conflict
                 localStorage.removeItem('talentbd_v1');
                 setTimeout(() => setView('login'), 2200);
             } else {
@@ -45,7 +44,6 @@ export default function Signup({ setView }) {
         }
     };
 
-    // Render Success State
     if (isSuccess) {
         return (
             <div style={styles.container}>
@@ -94,7 +92,6 @@ export default function Signup({ setView }) {
                 </AnimatePresence>
 
                 <form onSubmit={handleSignup} style={styles.form}>
-                    {/* NAME FIELD */}
                     <div style={styles.inputGroup}>
                         <label style={styles.label}>Full Name</label>
                         <div style={{
@@ -115,7 +112,6 @@ export default function Signup({ setView }) {
                         </div>
                     </div>
 
-                    {/* EMAIL FIELD */}
                     <div style={styles.inputGroup}>
                         <label style={styles.label}>Email Address</label>
                         <div style={{
@@ -137,7 +133,6 @@ export default function Signup({ setView }) {
                         </div>
                     </div>
 
-                    {/* PASSWORD FIELD */}
                     <div style={styles.inputGroup}>
                         <label style={styles.label}>Secure Password</label>
                         <div style={{
@@ -163,13 +158,18 @@ export default function Signup({ setView }) {
                         </div>
                     </div>
 
+                    {/* FIXED: Integrated the "Get Started" branding and Rocket icon here */}
                     <button 
                         type="submit" 
                         style={{...styles.btn, opacity: loading ? 0.8 : 1}} 
                         disabled={loading}
                     >
-                        {loading ? "Establishing Profile..." : "Create My Account"} 
-                        {!loading && <ChevronRight size={18} />}
+                        {loading ? "Establishing Profile..." : (
+                            <>
+                                Get Started <Rocket size={20} />
+                            </>
+                        )}
+                        {!loading && <ChevronRight size={18} style={{marginLeft: 'auto'}} />}
                     </button>
                 </form>
 
@@ -198,7 +198,7 @@ const styles = {
     input: { width: '100%', padding: '16px 16px 16px 48px', borderRadius: '14px', border: 'none', fontSize: '15px', outline: 'none', boxSizing: 'border-box', color: '#1e293b' },
     passStrength: { height: '4px', width: '100%', background: '#f1f5f9', borderRadius: '10px', marginTop: '8px', overflow: 'hidden' },
     strengthBar: { height: '100%', transition: '0.3s ease' },
-    btn: { width: '100%', padding: '18px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: '14px', cursor: 'pointer', fontWeight: '800', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', transition: 'all 0.3s ease', boxShadow: '0 10px 15px -3px rgba(15, 23, 42, 0.3)' },
+    btn: { width: '100%', padding: '18px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: '14px', cursor: 'pointer', fontWeight: '800', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '10px', transition: 'all 0.3s ease', boxShadow: '0 10px 15px -3px rgba(15, 23, 42, 0.3)' },
     footer: { marginTop: '35px', textAlign: 'center' },
     footerText: { fontSize: '15px', color: '#64748b', fontWeight: '500' },
     link: { color: '#2563eb', fontWeight: '800', cursor: 'pointer', textDecoration: 'underline' },

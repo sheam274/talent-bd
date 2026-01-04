@@ -7,7 +7,6 @@ const bcrypt = require('bcryptjs');
 const app = express();
 
 // --- DYNAMIC CORS ---
-// Replace with your actual frontend URL once deployed
 app.use(cors({
     origin: ["http://localhost:3000", "https://your-frontend.vercel.app"], 
     methods: ["GET", "POST", "PUT", "DELETE"],
@@ -19,13 +18,20 @@ app.use(express.json());
 // --- DATABASE CONNECTION ---
 const mongoURI = process.env.MONGO_URI;
 
-// ✅ FIXED: Removed deprecated useNewUrlParser and useUnifiedTopology
-mongoose.connect(mongoURI)
-    .then(() => {
+// Optimized for Vercel's stateless functions
+let isConnected = false;
+const connectDB = async () => {
+    if (isConnected) return;
+    try {
+        await mongoose.connect(mongoURI);
+        isConnected = true;
         console.log('✅ Connected to MongoDB');
         seedAdmin();
-    })
-    .catch(err => console.error('❌ Connection Error:', err.message));
+    } catch (err) {
+        console.error('❌ Connection Error:', err.message);
+    }
+};
+connectDB();
 
 // --- MODELS ---
 const UserSchema = new mongoose.Schema({
@@ -126,7 +132,12 @@ app.put('/api/users/update-progress', async (req, res) => {
     }
 });
 
-// --- VERCEL EXPORT ---
+// --- VERCEL CATCH-ALL ---
+// This ensures that if a route is missed, your app handles it instead of a Vercel 404 page
+app.use((req, res) => {
+    res.status(404).json({ error: `Route ${req.url} not found on this server.` });
+});
+
 module.exports = app;
 
 if (process.env.NODE_ENV !== 'production') {

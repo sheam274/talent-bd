@@ -14,7 +14,6 @@ const Login = ({ setUser, setView }) => {
         setError('');
         setLoading(true);
 
-        // SYNC: Standardizing data for the backend
         const credentials = { 
             email: email.toLowerCase().trim(), 
             password: password 
@@ -30,7 +29,6 @@ const Login = ({ setUser, setView }) => {
             const data = await response.json();
 
             if (response.ok) {
-                // FIXED: Using versioned key to match App.js state persistence
                 localStorage.setItem('talentbd_v1', JSON.stringify(data));
                 setUser(data); 
                 setView('home'); 
@@ -63,7 +61,6 @@ const Login = ({ setUser, setView }) => {
                 )}
                 
                 <form onSubmit={handleLogin} style={loginStyles.form}>
-                    {/* EMAIL FIELD */}
                     <div style={loginStyles.inputGroup}>
                         <label style={loginStyles.label}>Registered Email</label>
                         <div style={{
@@ -85,7 +82,6 @@ const Login = ({ setUser, setView }) => {
                         </div>
                     </div>
 
-                    {/* PASSWORD FIELD */}
                     <div style={loginStyles.inputGroup}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <label style={loginStyles.label}>Password</label>
@@ -117,16 +113,25 @@ const Login = ({ setUser, setView }) => {
                         </div>
                     </div>
                     
+                    {/* FIXED: Integrated the "Login Now" button with LogIn icon here */}
                     <button 
                         type="submit" 
                         style={{
                             ...loginStyles.btn,
                             opacity: loading ? 0.7 : 1,
-                            transform: loading ? 'scale(0.98)' : 'scale(1)'
+                            transform: loading ? 'scale(0.98)' : 'scale(1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '10px'
                         }} 
                         disabled={loading}
                     >
-                        {loading ? 'Verifying Account...' : 'Sign In'}
+                        {loading ? 'Verifying Account...' : (
+                            <>
+                                Login Now <LogIn size={20} />
+                            </>
+                        )}
                     </button>
                 </form>
 
@@ -137,7 +142,6 @@ const Login = ({ setUser, setView }) => {
                             Create an ID
                         </span>
                     </p>
-                    
                 </div>
             </div>
         </div>
@@ -231,17 +235,7 @@ const loginStyles = {
     footer: { marginTop: '35px', textAlign: 'center' },
     footerText: { fontSize: '15px', color: '#64748b', fontWeight: '500' },
     link: { color: '#2563eb', fontWeight: '800', cursor: 'pointer', textDecoration: 'underline' },
-    forgotLink: { fontSize: '12px', color: '#2563eb', fontWeight: '700', cursor: 'pointer' },
-    demoBox: { 
-        marginTop: '25px', 
-        padding: '15px', 
-        background: '#f8fafc', 
-        borderRadius: '16px', 
-        fontSize: '12px', 
-        color: '#64748b', 
-        border: '1px dashed #cbd5e1',
-        textAlign: 'left'
-    }
+    forgotLink: { fontSize: '12px', color: '#2563eb', fontWeight: '700', cursor: 'pointer' }
 };
 
 export default Login;

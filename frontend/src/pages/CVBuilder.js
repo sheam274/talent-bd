@@ -21,7 +21,7 @@ export default function CVBuilder({ user, job, onClose }) {
         skills: [{ name: user?.skills?.[0] || '', level: 'Expert' }],
         experience: [{ company: '', role: '', period: '', metrics: '' }],
         education: [{ institute: '', degree: '', year: '', gpa: '' }],
-        projects: [{ title: '', tech: '', description: '', link: '' }] // FIXED & ADDED
+        projects: [{ title: '', tech: '', description: '', link: '' }]
     });
 
     useEffect(() => {
@@ -77,6 +77,17 @@ export default function CVBuilder({ user, job, onClose }) {
         alert("✅ Progress Saved (Projects included)!");
     };
 
+    // Helper Component defined inside to avoid scope errors
+    const SectionWrapper = ({ title, children, onAdd }) => (
+        <div style={{marginBottom:'25px'}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px'}}>
+                <label style={{fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform:'uppercase'}}>{title}</label>
+                {onAdd && <button onClick={onAdd} style={styles.addCircle}><Plus size={14}/></button>}
+            </div>
+            {children}
+        </div>
+    );
+
     return (
         <div style={styles.container}>
             {/* EDITOR PANEL */}
@@ -88,6 +99,24 @@ export default function CVBuilder({ user, job, onClose }) {
                     </div>
                     {onClose && <button onClick={onClose} style={styles.closeBtn}><X size={18}/></button>}
                 </header>
+
+                {/* INTEGRATED AI SECTION */}
+                <div style={{marginBottom: '20px', padding: '15px', background: '#eff6ff', borderRadius: '12px', border: '1px solid #dbeafe'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '10px'}}>
+                         <label style={{fontSize: '11px', fontWeight: '900', color: '#2563eb', textTransform: 'uppercase'}}>AI Assistant</label>
+                         <button onClick={() => setTemplate('modern')} style={{fontSize: '10px', background: '#fff', border: '1px solid #dbeafe', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer'}}>Change Template</button>
+                    </div>
+                    {loading ? (
+                        <p style={{fontSize: '12px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '5px'}}>
+                            <Sparkles size={14} className="animate-pulse" /> Analyzing {jobCircular}...
+                        </p>
+                    ) : (
+                        <div style={{display: 'flex', alignItems: 'flex-start', gap: '8px'}}>
+                            <Sparkles size={16} color="#eab308" style={{marginTop: '2px'}} />
+                            <p style={{fontSize: '12px', color: '#1e40af', margin: 0}}>{aiAnalysis || "Ready to analyze your CV against the job circular."}</p>
+                        </div>
+                    )}
+                </div>
 
                 <div style={styles.formScroll}>
                     <SectionWrapper title="Profile Image">
@@ -113,7 +142,6 @@ export default function CVBuilder({ user, job, onClose }) {
                         <textarea style={styles.textarea} placeholder="Professional Summary..." value={cvData.summary} onChange={e => setCvData({...cvData, summary: e.target.value})} />
                     </SectionWrapper>
 
-                    {/* NEW: PROJECTS SECTION */}
                     <SectionWrapper title="Project Showcase" onAdd={() => addSectionItem('projects', {title:'', tech:'', description:'', link:''})}>
                         {cvData.projects.map((proj, i) => (
                             <div key={i} style={styles.itemCard}>
@@ -235,16 +263,6 @@ export default function CVBuilder({ user, job, onClose }) {
         </div>
     );
 }
-
-const SectionWrapper = ({ title, children, onAdd }) => (
-    <div style={{marginBottom:'25px'}}>
-        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px'}}>
-            <label style={{fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform:'uppercase'}}>{title}</label>
-            {onAdd && <button onClick={onAdd} style={styles.addCircle}><Plus size={14}/></button>}
-        </div>
-        {children}
-    </div>
-);
 
 const styles = {
     container: { display: 'flex', height: '100vh', background: '#f1f5f9', overflow:'hidden' },

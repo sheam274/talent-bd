@@ -6,11 +6,10 @@ export default function Jobs({ user, setView, jobs = [] }) {
     const [showSuccess, setShowSuccess] = useState(false);
     const [appliedJob, setAppliedJob] = useState(null);
 
-    // Standardized skill matching (Case-insensitive)
+    // Standardized skill matching
     const userSkills = user?.skills?.map(s => s.toLowerCase().trim()) || [];
     const checkSkill = (requiredSkill) => userSkills.includes(requiredSkill?.toLowerCase().trim());
 
-    // Filter and Stats Logic
     const displayJobs = jobs || []; 
     const potentialEarnings = displayJobs.reduce((acc, job) => acc + (Number(job.reward) || 0), 0);
     const unlockedEarnings = displayJobs
@@ -69,11 +68,18 @@ export default function Jobs({ user, setView, jobs = [] }) {
                                     color: isLocked ? '#94a3b8' : '#10b981',
                                     background: isLocked ? '#f8fafc' : '#f0fdf4'
                                 }}>{job.type || 'Gig'}</span>
-                                <div style={jobStyles.priceTag}>${job.reward}</div>
+                                <div style={{display: 'flex', alignItems: 'center', gap: '4px', color: '#0f172a'}}>
+                                    <DollarSign size={18} />
+                                    <span style={{fontSize: '24px', fontWeight: '900'}}>{job.reward}</span>
+                                </div>
                             </div>
 
-                            <h3 style={jobStyles.jobTitle}>{job.title}</h3>
-                            <p style={jobStyles.jobDesc}>{job.desc || `Required Skill: ${job.skill}`}</p>
+                            <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px'}}>
+                                <Briefcase size={18} color="#2563eb" />
+                                <h3 style={{...jobStyles.jobTitle, margin: 0}}>{job.title}</h3>
+                            </div>
+                            
+                            <p style={jobStyles.jobDesc}>{job.desc || `Opportunity for specialists in ${job.skill}.`}</p>
                             
                             <div style={{
                                 ...jobStyles.skillReq,
@@ -126,7 +132,10 @@ export default function Jobs({ user, setView, jobs = [] }) {
                             
                             <div style={popupStyles.summaryBox}>
                                 <div style={popupStyles.summaryItem}><span>Status:</span> <strong>Pending</strong></div>
-                                <div style={{...popupStyles.summaryItem, border:'none', color: '#10b981'}}><span>Potential Pay:</span> <strong>${appliedJob?.reward}</strong></div>
+                                <div style={{...popupStyles.summaryItem, border:'none', color: '#10b981'}}>
+                                    <span>Potential Pay:</span> 
+                                    <strong style={{display: 'flex', alignItems: 'center'}}><DollarSign size={14}/>{appliedJob?.reward}</strong>
+                                </div>
                             </div>
                             
                             <button onClick={() => setShowSuccess(false)} style={jobStyles.applyBtn}>Continue Browsing</button>
@@ -138,7 +147,7 @@ export default function Jobs({ user, setView, jobs = [] }) {
     );
 }
 
-// --- ALL REQUIRED STYLES DEFINED HERE ---
+// Styles preserved and enhanced for your specific layout
 const jobStyles = {
     container: { maxWidth: '1100px', margin: '0 auto', padding: '60px 20px' },
     headerSection: { marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
@@ -155,8 +164,7 @@ const jobStyles = {
     jobCard: { background: '#fff', padding: '30px', borderRadius: '24px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', minHeight: '380px', transition: 'box-shadow 0.3s' },
     cardTopRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
     typeTag: { padding: '5px 14px', borderRadius: '50px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase' },
-    priceTag: { fontSize: '24px', fontWeight: '900', color: '#0f172a' },
-    jobTitle: { margin: '0 0 12px 0', fontSize: '20px', fontWeight: '800', color: '#1e293b', lineHeight: '1.4' },
+    jobTitle: { fontSize: '20px', fontWeight: '800', color: '#1e293b', lineHeight: '1.4' },
     jobDesc: { fontSize: '14px', color: '#64748b', lineHeight: '1.6', marginBottom: '20px' },
     skillReq: { display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px', borderRadius: '12px' },
     applyBtn: { width: '100%', background: '#2563eb', color: '#fff', border: 'none', padding: '16px', borderRadius: '14px', cursor: 'pointer', fontWeight: '800', fontSize: '15px', boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.3)' },
