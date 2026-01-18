@@ -12,25 +12,37 @@ const UserSchema = new mongoose.Schema({
         trim: true 
     },
     password: { type: String, required: true },
-    points: { type: Number, default: 0 },         
-    walletBalance: { type: Number, default: 0 },   
+    points: { type: Number, default: 0 },         // rewardXP goes here
+    walletBalance: { type: Number, default: 0 },   // rewardWallet goes here
     skills: { type: [String], default: [] },                             
     bookmarks: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Job' }],
+    // Added for Course/Gig history
+    purchasedCourses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
     savedCV: {
         name: String,
         profileImage: String,
         bio: String,
         experience: String
     },
-    role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    // Expanded roles for Marketplace (Instructor can sell courses/gigs)
+    role: { 
+        type: String, 
+        enum: ['user', 'instructor', 'admin'], 
+        default: 'user' 
+    },
     createdAt: { type: Date, default: Date.now }
 });
 
-// FIXED: Middleware to hash password before saving to DB
-UserSchema.pre('save', async function() {
-    if (!this.isModified('password')) return;
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
+// FIXED: Added 'next' and 'this.isModified' check to prevent unnecessary hashing
+UserSchema.pre('save', async function(next) {
+    if (!this.isModified('password')) return next();
+    try {
+        const salt = await bcrypt.genSalt(10);
+        this.password = await bcrypt.hash(this.password, salt);
+        next();
+    } catch (err) {
+        next(err);
+    }
 });
 
 // --- 2. JOB SCHEMA ---
@@ -45,25 +57,45 @@ const JobSchema = new mongoose.Schema({
     postedAt: { type: Date, default: Date.now }
 });
 
-// --- 3. COURSE SCHEMA ---
+// --- 3. COURSE SCHEMA (Fixed & Enhanced) ---
 const CourseSchema = new mongoose.Schema({
-    title: { type: String, required: true },
-    skillTag: { type: String, required: true },      
+    title: { type: String, required: true, trim: true },
+    instructor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    category: { type: String, default: 'General' },
+    skillTag: { type: String, required: true, lowercase: true },      
     videoUrl: { type: String, required: true },
+    price: { type: Number, default: 0 }, // Added for selling
     description: String,
-    rewardAmount: { type: Number, default: 50 },     
+    rewardXP: { type: Number, default: 100 },     
+    rewardWallet: { type: Number, default: 50 },     
     quiz: [{
         question: { type: String, required: true },
-        options: [{ type: String, required: true }],
+        options: { 
+            type: [String], 
+            validate: [v => v.length >= 2, 'Minimum 2 options required'] 
+        },
         correctAnswer: { type: Number, required: true } 
     }],
     verifiedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
+}, { timestamps: true });
+
+// FIXED: YouTube/Vimeo Embed Logic (Added from previous step)
+CourseSchema.pre('save', function(next) {
+    if (this.isModified('videoUrl')) {
+        if (this.videoUrl.includes('youtube.com/watch?v=')) {
+            const videoId = this.videoUrl.split('v=')[1].split('&')[0];
+            this.videoUrl = `https://www.youtube.com/embed/${videoId}`;
+        } else if (this.videoUrl.includes('youtu.be/')) {
+            const videoId = this.videoUrl.split('/').pop().split('?')[0];
+            this.videoUrl = `https://www.youtube.com/embed/${videoId}`;
+        }
+    }
+    next();
 });
 
-// FIXED: Defining models before exporting
+// --- MODELS ---
 const User = mongoose.model('User', UserSchema);
 const Job = mongoose.model('Job', JobSchema);
 const Course = mongoose.model('Course', CourseSchema);
 
-// Exporting so they can be accessed as require('./models').User
 module.exports = { User, Job, Course };

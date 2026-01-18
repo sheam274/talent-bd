@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { User, Mail, Lock, Rocket, ChevronRight, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Mail, Lock, Rocket, ChevronRight, CheckCircle2, AlertCircle, ShieldCheck, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Signup({ setView }) {
@@ -8,6 +8,14 @@ export default function Signup({ setView }) {
     const [isSuccess, setIsSuccess] = useState(false);
     const [serverError, setServerError] = useState("");
     const [focusedField, setFocusedField] = useState("");
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    // Responsive Tracker
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const handleSignup = async (e) => {
         e.preventDefault();
@@ -33,12 +41,12 @@ export default function Signup({ setView }) {
             if (res.ok) {
                 setIsSuccess(true);
                 localStorage.removeItem('talentbd_v1');
-                setTimeout(() => setView('login'), 2200);
+                setTimeout(() => setView('login'), 2500);
             } else {
                 setServerError(data.error || "Signup failed. Please try again.");
             }
         } catch (err) {
-            setServerError("Cannot connect to server. Is your backend running on port 5000?");
+            setServerError("Cloud Sync Offline: Ensure Node.js is running on Port 5000.");
         } finally {
             setLoading(false);
         }
@@ -48,20 +56,26 @@ export default function Signup({ setView }) {
         return (
             <div style={styles.container}>
                 <motion.div 
-                    initial={{ opacity: 0, scale: 0.9 }} 
-                    animate={{ opacity: 1, scale: 1 }}
-                    style={{...styles.card, textAlign: 'center', padding: '60px 40px'}}
+                    initial={{ opacity: 0, y: 20 }} 
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{...styles.card, textAlign: 'center', padding: isMobile ? '40px 20px' : '60px 40px'}}
                 >
-                    <div style={styles.successIcon}>
+                    <motion.div 
+                        animate={{ rotate: [0, -10, 10, 0] }}
+                        transition={{ repeat: Infinity, duration: 2 }}
+                        style={styles.successIcon}
+                    >
                         <CheckCircle2 size={40} color="#fff" />
-                    </div>
-                    <h2 style={{margin: '0 0 10px 0', fontSize: '26px', fontWeight: '900'}}>Welcome Aboard!</h2>
-                    <p style={{color: '#64748b', fontSize: '15px', lineHeight: '1.6'}}>
+                    </motion.div>
+                    <h2 style={{margin: '0 0 12px 0', fontSize: isMobile ? '24px' : '28px', fontWeight: '900'}}>Welcome Aboard!</h2>
+                    <p style={{color: '#64748b', fontSize: '16px', lineHeight: '1.6'}}>
                         Your professional profile has been created. <br/>
-                        Redirecting you to the secure login...
+                        Redirecting to secure login...
                     </p>
                     <div style={styles.loadingDots}>
-                        <span>.</span><span>.</span><span>.</span>
+                        <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1 }}>.</motion.span>
+                        <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }}>.</motion.span>
+                        <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }}>.</motion.span>
                     </div>
                 </motion.div>
             </div>
@@ -69,24 +83,29 @@ export default function Signup({ setView }) {
     }
 
     return (
-        <div style={styles.container}>
-            <div style={styles.card}>
+        <div style={{...styles.container, padding: isMobile ? '15px' : '40px'}}>
+            <div style={{
+                ...styles.card, 
+                padding: isMobile ? '40px 24px' : '48px 40px',
+                borderRadius: isMobile ? '24px' : '32px'
+            }}>
                 <div style={styles.header}>
                     <div style={styles.brandIcon}>
                         <ShieldCheck size={26} color="#fff" />
                     </div>
-                    <h2 style={styles.title}>Join TalentBD</h2>
+                    <h2 style={{...styles.title, fontSize: isMobile ? '24px' : '30px'}}>Join <span style={{color: '#2563eb'}}>TalentBD</span></h2>
                     <p style={styles.subtitle}>Build a verified career with AI-driven insights.</p>
                 </div>
 
-                <AnimatePresence>
+                <AnimatePresence mode="wait">
                     {serverError && (
                         <motion.div 
                             initial={{ height: 0, opacity: 0 }} 
                             animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
                             style={styles.errorBanner}
                         >
-                            <AlertCircle size={16} /> <span>{serverError}</span>
+                            <AlertCircle size={18} /> <span>{serverError}</span>
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -97,12 +116,12 @@ export default function Signup({ setView }) {
                         <div style={{
                             ...styles.inputWrapper, 
                             borderColor: focusedField === 'name' ? '#2563eb' : '#e2e8f0',
-                            boxShadow: focusedField === 'name' ? '0 0 0 3px rgba(37, 99, 235, 0.1)' : 'none'
+                            background: focusedField === 'name' ? '#fff' : '#fcfdfe'
                         }}>
                             <User style={{...styles.fieldIcon, color: focusedField === 'name' ? '#2563eb' : '#94a3b8'}} size={18} />
                             <input 
                                 style={styles.input} 
-                                placeholder="e.g. Tanvir Ahmed" 
+                                placeholder="Tanvir Ahmed" 
                                 value={formData.name}
                                 onFocus={() => setFocusedField('name')}
                                 onBlur={() => setFocusedField('')}
@@ -117,7 +136,7 @@ export default function Signup({ setView }) {
                         <div style={{
                             ...styles.inputWrapper, 
                             borderColor: focusedField === 'email' ? '#2563eb' : '#e2e8f0',
-                            boxShadow: focusedField === 'email' ? '0 0 0 3px rgba(37, 99, 235, 0.1)' : 'none'
+                            background: focusedField === 'email' ? '#fff' : '#fcfdfe'
                         }}>
                             <Mail style={{...styles.fieldIcon, color: focusedField === 'email' ? '#2563eb' : '#94a3b8'}} size={18} />
                             <input 
@@ -138,7 +157,7 @@ export default function Signup({ setView }) {
                         <div style={{
                             ...styles.inputWrapper, 
                             borderColor: focusedField === 'password' ? '#2563eb' : '#e2e8f0',
-                            boxShadow: focusedField === 'password' ? '0 0 0 3px rgba(37, 99, 235, 0.1)' : 'none'
+                            background: focusedField === 'password' ? '#fff' : '#fcfdfe'
                         }}>
                             <Lock style={{...styles.fieldIcon, color: focusedField === 'password' ? '#2563eb' : '#94a3b8'}} size={18} />
                             <input 
@@ -154,17 +173,26 @@ export default function Signup({ setView }) {
                             />
                         </div>
                         <div style={styles.passStrength}>
-                            <div style={{...styles.strengthBar, width: formData.password.length > 5 ? '100%' : '30%', background: formData.password.length > 5 ? '#10b981' : '#f59e0b'}}></div>
+                            <motion.div 
+                                animate={{ width: formData.password.length > 5 ? '100%' : '30%' }}
+                                style={{
+                                    ...styles.strengthBar, 
+                                    background: formData.password.length > 5 ? '#10b981' : '#f59e0b'
+                                }}
+                            ></motion.div>
                         </div>
                     </div>
 
-                    {/* FIXED: Integrated the "Get Started" branding and Rocket icon here */}
                     <button 
                         type="submit" 
-                        style={{...styles.btn, opacity: loading ? 0.8 : 1}} 
+                        style={{
+                            ...styles.btn, 
+                            opacity: loading ? 0.8 : 1,
+                            backgroundColor: loading ? '#64748b' : '#0f172a'
+                        }} 
                         disabled={loading}
                     >
-                        {loading ? "Establishing Profile..." : (
+                        {loading ? "Establishing ID..." : (
                             <>
                                 Get Started <Rocket size={20} />
                             </>
@@ -177,6 +205,9 @@ export default function Signup({ setView }) {
                     <p style={styles.footerText}>
                         Already a member? <span onClick={() => setView('login')} style={styles.link}>Login here</span>
                     </p>
+                    <div style={styles.secureNote}>
+                        <Sparkles size={12} /> Encrypted by TalentBD Protocol
+                    </div>
                 </div>
             </div>
         </div>
@@ -184,25 +215,26 @@ export default function Signup({ setView }) {
 }
 
 const styles = {
-    container: { minHeight: '90vh', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px', background: '#f8fafc' },
-    card: { background: '#fff', padding: '48px 40px', borderRadius: '32px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.08)', width: '100%', maxWidth: '460px', border: '1px solid #e2e8f0' },
+    container: { minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'radial-gradient(circle at bottom, #f1f5f9 0%, #fff 100%)' },
+    card: { background: '#fff', width: '100%', maxWidth: '480px', border: '1px solid #e2e8f0', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.08)' },
     header: { textAlign: 'center', marginBottom: '35px' },
-    brandIcon: { background: '#2563eb', width: '54px', height: '54px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.4)' },
-    title: { margin: 0, fontSize: '28px', fontWeight: '900', color: '#0f172a', letterSpacing: '-1px' },
-    subtitle: { color: '#64748b', fontSize: '15px', marginTop: '8px', lineHeight: '1.5' },
-    form: { display: 'flex', flexDirection: 'column', gap: '24px' },
-    inputGroup: { display: 'flex', flexDirection: 'column', gap: '10px' },
-    label: { fontSize: '14px', fontWeight: '800', color: '#1e293b' },
-    inputWrapper: { position: 'relative', display: 'flex', alignItems: 'center', border: '1px solid #e2e8f0', borderRadius: '14px', transition: 'all 0.2s ease' },
-    fieldIcon: { position: 'absolute', left: '16px', transition: '0.2s' },
-    input: { width: '100%', padding: '16px 16px 16px 48px', borderRadius: '14px', border: 'none', fontSize: '15px', outline: 'none', boxSizing: 'border-box', color: '#1e293b' },
-    passStrength: { height: '4px', width: '100%', background: '#f1f5f9', borderRadius: '10px', marginTop: '8px', overflow: 'hidden' },
-    strengthBar: { height: '100%', transition: '0.3s ease' },
-    btn: { width: '100%', padding: '18px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: '14px', cursor: 'pointer', fontWeight: '800', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '10px', transition: 'all 0.3s ease', boxShadow: '0 10px 15px -3px rgba(15, 23, 42, 0.3)' },
+    brandIcon: { background: '#2563eb', width: '60px', height: '60px', borderRadius: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', boxShadow: '0 10px 20px rgba(37, 99, 235, 0.3)' },
+    title: { margin: 0, fontWeight: '900', color: '#0f172a', letterSpacing: '-1.5px' },
+    subtitle: { color: '#64748b', fontSize: '15px', marginTop: '10px', lineHeight: '1.6' },
+    form: { display: 'flex', flexDirection: 'column', gap: '22px' },
+    inputGroup: { display: 'flex', flexDirection: 'column', gap: '8px' },
+    label: { fontSize: '13px', fontWeight: '900', color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.5px' },
+    inputWrapper: { position: 'relative', display: 'flex', alignItems: 'center', border: '1px solid #e2e8f0', borderRadius: '16px', transition: 'all 0.3s ease' },
+    fieldIcon: { position: 'absolute', left: '18px', transition: '0.2s' },
+    input: { width: '100%', padding: '18px 18px 18px 52px', borderRadius: '16px', border: 'none', fontSize: '15px', outline: 'none', boxSizing: 'border-box', color: '#1e293b', fontWeight: '600', background: 'transparent' },
+    passStrength: { height: '6px', width: '100%', background: '#f1f5f9', borderRadius: '10px', marginTop: '8px', overflow: 'hidden' },
+    strengthBar: { height: '100%', transition: '0.5s cubic-bezier(0.4, 0, 0.2, 1)' },
+    btn: { width: '100%', padding: '18px', color: '#fff', border: 'none', borderRadius: '18px', cursor: 'pointer', fontWeight: '900', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '12px', transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)', marginTop: '10px', boxShadow: '0 15px 30px -5px rgba(15, 23, 42, 0.3)' },
     footer: { marginTop: '35px', textAlign: 'center' },
-    footerText: { fontSize: '15px', color: '#64748b', fontWeight: '500' },
-    link: { color: '#2563eb', fontWeight: '800', cursor: 'pointer', textDecoration: 'underline' },
-    successIcon: { background: '#10b981', width: '80px', height: '80px', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 25px', boxShadow: '0 15px 30px rgba(16, 185, 129, 0.4)', transform: 'rotate(-5deg)' },
-    errorBanner: { background: '#fff1f2', color: '#be123c', padding: '14px', borderRadius: '12px', fontSize: '13px', marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '10px', border: '1px solid #fecdd3', fontWeight: '600' },
-    loadingDots: { display: 'flex', justifyContent: 'center', gap: '5px', fontSize: '24px', color: '#2563eb', marginTop: '10px' }
+    footerText: { fontSize: '15px', color: '#64748b', fontWeight: '600' },
+    link: { color: '#2563eb', fontWeight: '900', cursor: 'pointer', textDecoration: 'underline' },
+    successIcon: { background: '#10b981', width: '85px', height: '85px', borderRadius: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 25px', boxShadow: '0 20px 40px rgba(16, 185, 129, 0.3)' },
+    errorBanner: { background: '#fff1f2', color: '#be123c', padding: '16px', borderRadius: '16px', fontSize: '13px', marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid #fecdd3', fontWeight: '800' },
+    loadingDots: { display: 'flex', justifyContent: 'center', gap: '6px', fontSize: '32px', color: '#2563eb', height: '40px', alignItems: 'center' },
+    secureNote: { marginTop: '20px', fontSize: '10px', fontWeight: '900', color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', textTransform: 'uppercase' }
 };

@@ -12,13 +12,17 @@ app.post('/api/admin/add-video', async (req, res) => {
             quiz, 
             rewardXP, 
             rewardWallet,
-            difficulty 
+            difficulty,
+            price,       // ADDED: For Marketplace selling
+            instructor,  // ADDED: To link with User model
+            thumbnail    // ADDED: For premium UI
         } = req.body;
 
         // 1. STRICTOR VALIDATION
-        if (!title || !skillTag || !videoUrl) {
+        // Added instructor to required fields to maintain DB integrity
+        if (!title || !skillTag || !videoUrl || !instructor) {
             return res.status(400).json({ 
-                error: "Required: Title, Skill Tag, and Video URL must be provided." 
+                error: "Required: Title, Skill Tag, Video URL, and Instructor ID must be provided." 
             });
         }
 
@@ -28,40 +32,28 @@ app.post('/api/admin/add-video', async (req, res) => {
             return res.status(400).json({ error: "This video course has already been published." });
         }
 
-        // 3. ROBUST URL CONVERSION (Support for Timestamped URLs)
-        let embedUrl = videoUrl;
-        try {
-            if (videoUrl.includes("watch?v=")) {
-                // Extracts the ID even if there are &t= or other params
-                const videoId = videoUrl.split("v=")[1].split("&")[0];
-                embedUrl = `https://www.youtube.com/embed/${videoId}`;
-            } else if (videoUrl.includes("youtu.be/")) {
-                const videoId = videoUrl.split("/").pop().split("?")[0];
-                embedUrl = `https://www.youtube.com/embed/${videoId}`;
-            }
-        } catch (urlErr) {
-            return res.status(400).json({ error: "Invalid YouTube URL format." });
-        }
-
-        // 4. CREATE THE COURSE
-        // Preserves the reward system and quiz features exactly as requested
+        // 3. CREATE THE COURSE
+        // Note: The URL conversion is now handled by the Pre-Save Hook in Course.js, 
+        // but we pass the raw URL here to keep the controller clean.
         const newCourse = new Course({
             title: title.trim(),
+            instructor: instructor, // Link to the User ID
             category: category || 'Development',
             skillTag: skillTag.toLowerCase().trim(),
             difficulty: difficulty || 'Beginner',
-            videoUrl: embedUrl,
+            videoUrl: videoUrl,
+            price: Number(price) || 0,
+            thumbnail: thumbnail || '',
             description: description || '',
             rewardXP: Number(rewardXP) || 100,
             rewardWallet: Number(rewardWallet) || 50,
-            // Ensure quiz is an array and filter out empty questions
             quiz: Array.isArray(quiz) ? quiz.filter(q => q.question) : []
         });
 
-        // 5. SAVE TO MONGODB
+        // 4. SAVE TO MONGODB
         await newCourse.save();
 
-        console.log(`🎬 New Course Published: ${title}`);
+        console.log(`🎬 New Course Published: ${title} by Admin/Instructor`);
         
         res.status(201).json({ 
             success: true,
@@ -78,12 +70,37 @@ app.post('/api/admin/add-video', async (req, res) => {
     }
 });
 
-// GET: Fetch all courses (Essential for the Learning Hub to work)
+// GET: Fetch all courses with SYNCED SEARCH & FILTERING
+// This makes the Learning Hub responsive for the user
 app.get('/api/courses', async (req, res) => {
     try {
-        const courses = await Course.find().sort({ createdAt: -1 });
-        res.json(courses);
+        const { category, skill, difficulty, search } = req.query;
+        let query = {};
+
+        // SYNC: Filter by Category
+        if (category) query.category = category;
+        
+        // SYNC: Filter by Difficulty
+        if (difficulty) query.difficulty = difficulty;
+
+        // SYNC: Filter by Skill (lowercase for model match)
+        if (skill) query.skillTag = skill.toLowerCase();
+
+        // SYNC: Search by Title (Case-insensitive)
+        if (search) {
+            query.title = { $regex: search, $options: 'i' };
+        }
+
+        const courses = await Course.find(query)
+            .populate('instructor', 'name savedCV.profileImage') // Shows instructor info on UI
+            .sort({ createdAt: -1 });
+
+        res.json({
+            success: true,
+            count: courses.length,
+            courses
+        });
     } catch (err) {
-        res.status(500).json({ error: "Failed to fetch courses" });
+        res.status(500).json({ error: "Failed to fetch courses", details: err.message });
     }
 });

@@ -6,13 +6,16 @@ const ExperienceSchema = new mongoose.Schema({
     company: String,
     role: String,
     duration: String,
-    description: String
+    description: String,
+    location: String, // Added for CV completeness
+    website: String   // Added for professional look
 });
 
 const EducationSchema = new mongoose.Schema({
     institute: String,
     degree: String,
-    year: String
+    year: String,
+    result: String    // Added for academic detail
 });
 
 const userSchema = new mongoose.Schema({
@@ -20,15 +23,23 @@ const userSchema = new mongoose.Schema({
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true },
-    role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    // SYNC: Added 'instructor' role to support Course/Gig selling
+    role: { type: String, enum: ['user', 'instructor', 'admin'], default: 'user' },
 
     // --- Gamification & Earnings ---
     points: { type: Number, default: 0 },         
     walletBalance: { type: Number, default: 0 },   
-    verifiedSkills: [{ type: String, lowercase: true }], // Lowercase for easier matching
+    verifiedSkills: [{ type: String, lowercase: true, index: true }], 
 
-    // --- Interaction ---
+    // --- Interaction & Marketplace Sync ---
     bookmarks: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Job' }],
+    // NEW SYNC: Tracking what the user has bought or where they applied
+    purchasedCourses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
+    appliedJobs: [{
+        jobId: { type: mongoose.Schema.Types.ObjectId, ref: 'Job' },
+        status: { type: String, enum: ['Pending', 'Reviewed', 'Accepted', 'Rejected'], default: 'Pending' },
+        appliedAt: { type: Date, default: Date.now }
+    }],
 
     // --- Professional CV Data ---
     savedCV: {
@@ -36,8 +47,11 @@ const userSchema = new mongoose.Schema({
         email: { type: String },
         phone: { type: String },
         summary: { type: String },
-        profileImage: { type: String }, 
+        profileImage: { type: String, default: 'https://via.placeholder.com/150?text=User' }, 
         template: { type: String, default: 'modern' },
+        LinkedIn: String,      // Added for sync with Job applications
+        nationality: String,
+        dob: String,
         
         education: [EducationSchema],
         experience: [ExperienceSchema],
@@ -45,6 +59,12 @@ const userSchema = new mongoose.Schema({
         skills: [{
             name: { type: String },
             level: { type: String, enum: ['Beginner', 'Intermediate', 'Expert'], default: 'Beginner' }
+        }],
+        
+        projects: [{           // Added to match ATS scanner capabilities
+            title: String,
+            link: String,
+            desc: String
         }]
     }
 }, { 
@@ -54,7 +74,6 @@ const userSchema = new mongoose.Schema({
 });
 
 // --- FIX 1: PASSWORD HASHING ---
-// This ensures your Login logic actually works!
 userSchema.pre('save', async function(next) {
     if (!this.isModified('password')) return next();
     try {
@@ -67,17 +86,25 @@ userSchema.pre('save', async function(next) {
 });
 
 // --- FIX 2: VIRTUAL LEVELING ---
-// Calculates level dynamically so you don't have to save it in DB
 userSchema.virtual('level').get(function() {
     return Math.floor((this.points || 0) / 1000) + 1;
 });
 
-// --- FIX 3: TOTAL SKILLS HELPER ---
-// Combines verified and manual skills for a master list
+// --- FIX 3: TOTAL SKILLS HELPER (Master Matcher) ---
 userSchema.virtual('allSkills').get(function() {
     const manual = this.savedCV?.skills?.map(s => s.name.toLowerCase()) || [];
     const verified = this.verifiedSkills || [];
     return [...new Set([...manual, ...verified])];
+});
+
+// --- FIX 4: PROFILE COMPLETENESS (For Responsive UI) ---
+userSchema.virtual('profileStrength').get(function() {
+    let score = 0;
+    if (this.savedCV?.summary) score += 20;
+    if (this.savedCV?.profileImage) score += 10;
+    if (this.savedCV?.experience?.length > 0) score += 35;
+    if (this.savedCV?.education?.length > 0) score += 35;
+    return Math.min(score, 100);
 });
 
 module.exports = mongoose.model('User', userSchema);

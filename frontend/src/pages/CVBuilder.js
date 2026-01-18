@@ -1,13 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { Sparkles, Download, Cloud, Plus, Trash2, Layout, X, GraduationCap, Award, Briefcase, Code, Camera, User, ExternalLink } from 'lucide-react';
+import { Sparkles, Download, Cloud, Plus, Trash2, Layout, X, GraduationCap, Award, Briefcase, Code, Camera, User, ExternalLink, Eye } from 'lucide-react';
+
+// --- Helper Component moved outside to prevent focus loss ---
+const SectionWrapper = ({ title, children, onAdd }) => (
+    <div style={{marginBottom:'25px'}}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px'}}>
+            <label style={{fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform:'uppercase'}}>{title}</label>
+            {onAdd && <button onClick={onAdd} style={styles.addCircle}><Plus size={14}/></button>}
+        </div>
+        {children}
+    </div>
+);
 
 export default function CVBuilder({ user, job, onClose }) {
     const [template, setTemplate] = useState('modern');
     const [jobCircular, setJobCircular] = useState(job ? `${job.title}\n${job.skill}` : '');
     const [aiAnalysis, setAiAnalysis] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 1024 : false);
+    const [showPreviewMobile, setShowPreviewMobile] = useState(false);
     const fileInputRef = useRef(null);
 
     const [cvData, setCvData] = useState({
@@ -25,6 +38,8 @@ export default function CVBuilder({ user, job, onClose }) {
     });
 
     useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 1024);
+        window.addEventListener('resize', handleResize);
         if (user) {
             setCvData(prev => ({
                 ...prev,
@@ -34,6 +49,7 @@ export default function CVBuilder({ user, job, onClose }) {
             }));
         }
         if (job) setJobCircular(`${job.title} - ${job.skill}`);
+        return () => window.removeEventListener('resize', handleResize);
     }, [user, job]);
 
     const handlePhotoUpload = (e) => {
@@ -49,7 +65,7 @@ export default function CVBuilder({ user, job, onClose }) {
 
     const updateField = (section, index, field, value) => {
         const updated = [...cvData[section]];
-        updated[index][field] = value;
+        updated[index] = { ...updated[index], [field]: value };
         setCvData({ ...cvData, [section]: updated });
     };
 
@@ -77,43 +93,42 @@ export default function CVBuilder({ user, job, onClose }) {
         alert("✅ Progress Saved (Projects included)!");
     };
 
-    // Helper Component defined inside to avoid scope errors
-    const SectionWrapper = ({ title, children, onAdd }) => (
-        <div style={{marginBottom:'25px'}}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px'}}>
-                <label style={{fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform:'uppercase'}}>{title}</label>
-                {onAdd && <button onClick={onAdd} style={styles.addCircle}><Plus size={14}/></button>}
-            </div>
-            {children}
-        </div>
-    );
-
     return (
-        <div style={styles.container}>
+        <div style={{...styles.container, flexDirection: isMobile ? 'column' : 'row'}}>
             {/* EDITOR PANEL */}
-            <aside style={styles.editorPane}>
+            <aside style={{
+                ...styles.editorPane, 
+                display: (isMobile && showPreviewMobile) ? 'none' : 'flex',
+                width: isMobile ? '100%' : '450px'
+            }}>
                 <header style={styles.paneHeader}>
                     <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
                         <Layout color="#2563eb" size={24}/>
                         <h2 style={{margin:0, fontSize:'18px'}}>CV <span style={{color:'#2563eb'}}>Architect</span></h2>
                     </div>
-                    {onClose && <button onClick={onClose} style={styles.closeBtn}><X size={18}/></button>}
+                    <div style={{display:'flex', gap:'10px'}}>
+                        {isMobile && (
+                            <button onClick={() => setShowPreviewMobile(true)} style={styles.mobileToggleBtn}>
+                                <Eye size={18}/> Preview
+                            </button>
+                        )}
+                        {onClose && <button onClick={onClose} style={styles.closeBtn}><X size={18}/></button>}
+                    </div>
                 </header>
 
-                {/* INTEGRATED AI SECTION */}
-                <div style={{marginBottom: '20px', padding: '15px', background: '#eff6ff', borderRadius: '12px', border: '1px solid #dbeafe'}}>
+                <div style={styles.aiCard}>
                     <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '10px'}}>
-                         <label style={{fontSize: '11px', fontWeight: '900', color: '#2563eb', textTransform: 'uppercase'}}>AI Assistant</label>
-                         <button onClick={() => setTemplate('modern')} style={{fontSize: '10px', background: '#fff', border: '1px solid #dbeafe', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer'}}>Change Template</button>
+                         <label style={styles.aiLabel}>AI Assistant</label>
+                         <button onClick={() => setTemplate('modern')} style={styles.templateBtn}>Change Template</button>
                     </div>
                     {loading ? (
-                        <p style={{fontSize: '12px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '5px'}}>
+                        <p style={styles.aiLoading}>
                             <Sparkles size={14} className="animate-pulse" /> Analyzing {jobCircular}...
                         </p>
                     ) : (
                         <div style={{display: 'flex', alignItems: 'flex-start', gap: '8px'}}>
                             <Sparkles size={16} color="#eab308" style={{marginTop: '2px'}} />
-                            <p style={{fontSize: '12px', color: '#1e40af', margin: 0}}>{aiAnalysis || "Ready to analyze your CV against the job circular."}</p>
+                            <p style={styles.aiText}>{aiAnalysis || "Ready to analyze your CV against the job circular."}</p>
                         </div>
                     )}
                 </div>
@@ -201,60 +216,70 @@ export default function CVBuilder({ user, job, onClose }) {
             </aside>
 
             {/* PREVIEW PANEL */}
-            <main style={styles.previewPane}>
-                <div id="resume-preview" style={styles.a4}>
-                    <div style={styles.cvHeader}>
-                        <div style={{display:'flex', alignItems:'center', gap:'25px'}}>
-                            <div style={styles.previewPhotoWrapper}>
-                                {cvData.photo ? <img src={cvData.photo} alt="Profile" style={styles.previewPhoto} /> : <User size={40} color="#cbd5e1" />}
-                            </div>
-                            <div style={{textAlign:'left'}}>
-                                <h1 style={styles.cvName}>{cvData.name || "YOUR NAME"}</h1>
-                                <p style={styles.cvContact}>{cvData.email} | {cvData.location} | {cvData.phone}</p>
+            <main style={{
+                ...styles.previewPane, 
+                display: (isMobile && !showPreviewMobile) ? 'none' : 'flex'
+            }}>
+                {isMobile && (
+                    <button onClick={() => setShowPreviewMobile(false)} style={styles.mobileBackBtn}>
+                        <X size={18}/> Back to Editor
+                    </button>
+                )}
+                <div style={styles.a4ScaleWrapper}>
+                    <div id="resume-preview" style={styles.a4}>
+                        <div style={styles.cvHeader}>
+                            <div style={{display:'flex', alignItems:'center', gap:'25px'}}>
+                                <div style={styles.previewPhotoWrapper}>
+                                    {cvData.photo ? <img src={cvData.photo} alt="Profile" style={styles.previewPhoto} /> : <User size={40} color="#cbd5e1" />}
+                                </div>
+                                <div style={{textAlign:'left'}}>
+                                    <h1 style={styles.cvName}>{cvData.name || "YOUR NAME"}</h1>
+                                    <p style={styles.cvContact}>{cvData.email} | {cvData.location} | {cvData.phone}</p>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div style={styles.cvBodyGrid}>
-                        <div style={{flex: 2}}>
-                            <h3 style={styles.cvSectionTitle}><Briefcase size={14}/> Summary</h3>
-                            <p style={styles.cvText}>{cvData.summary}</p>
+                        <div style={styles.cvBodyGrid}>
+                            <div style={{flex: 2}}>
+                                <h3 style={styles.cvSectionTitle}><Briefcase size={14}/> Summary</h3>
+                                <p style={styles.cvText}>{cvData.summary}</p>
 
-                            <h3 style={styles.cvSectionTitle}><ExternalLink size={14}/> Key Projects</h3>
-                            {cvData.projects.map((proj, i) => (
-                                <div key={i} style={{marginBottom:'12px'}}>
-                                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
-                                        <strong>{proj.title}</strong>
-                                        <span style={{fontSize:'10px', color:'#2563eb'}}>{proj.tech}</span>
+                                <h3 style={styles.cvSectionTitle}><ExternalLink size={14}/> Key Projects</h3>
+                                {cvData.projects.map((proj, i) => (
+                                    <div key={i} style={{marginBottom:'12px'}}>
+                                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
+                                            <strong>{proj.title}</strong>
+                                            <span style={{fontSize:'10px', color:'#2563eb'}}>{proj.tech}</span>
+                                        </div>
+                                        <p style={{...styles.cvText, margin:'2px 0'}}>{proj.description}</p>
                                     </div>
-                                    <p style={{...styles.cvText, margin:'2px 0'}}>{proj.description}</p>
-                                </div>
-                            ))}
-
-                            <h3 style={styles.cvSectionTitle}><Award size={14}/> Work Experience</h3>
-                            {cvData.experience.map((exp, i) => (
-                                <div key={i} style={{marginBottom:'10px'}}>
-                                    <strong>{exp.company}</strong> — <i>{exp.role}</i>
-                                    <p style={styles.cvText}>{exp.metrics}</p>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div style={{flex: 1, paddingLeft:'20px', borderLeft:'1px solid #f1f5f9'}}>
-                            <h3 style={styles.cvSectionTitle}><GraduationCap size={16}/> Education</h3>
-                            {cvData.education.map((edu, i) => (
-                                <div key={i} style={{marginBottom:'12px'}}>
-                                    <div style={{fontWeight:'bold', fontSize:'12px'}}>{edu.institute}</div>
-                                    <div style={{fontSize:'11px'}}>{edu.degree}</div>
-                                    <div style={{fontSize:'10px', color:'#64748b'}}>{edu.year}</div>
-                                </div>
-                            ))}
-
-                            <h3 style={styles.cvSectionTitle}><Code size={14}/> Core Skills</h3>
-                            <div style={{display:'flex', flexWrap:'wrap', gap:'6px'}}>
-                                {cvData.skills.map((sk, i) => (
-                                    <span key={i} style={styles.skillTag}>{sk.name}</span>
                                 ))}
+
+                                <h3 style={styles.cvSectionTitle}><Award size={14}/> Work Experience</h3>
+                                {cvData.experience.map((exp, i) => (
+                                    <div key={i} style={{marginBottom:'10px'}}>
+                                        <strong>{exp.company}</strong> — <i>{exp.role}</i>
+                                        <p style={styles.cvText}>{exp.metrics}</p>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div style={{flex: 1, paddingLeft:'20px', borderLeft:'1px solid #f1f5f9'}}>
+                                <h3 style={styles.cvSectionTitle}><GraduationCap size={16}/> Education</h3>
+                                {cvData.education.map((edu, i) => (
+                                    <div key={i} style={{marginBottom:'12px'}}>
+                                        <div style={{fontWeight:'bold', fontSize:'12px'}}>{edu.institute}</div>
+                                        <div style={{fontSize:'11px'}}>{edu.degree}</div>
+                                        <div style={{fontSize:'10px', color:'#64748b'}}>{edu.year}</div>
+                                    </div>
+                                ))}
+
+                                <h3 style={styles.cvSectionTitle}><Code size={14}/> Core Skills</h3>
+                                <div style={{display:'flex', flexWrap:'wrap', gap:'6px'}}>
+                                    {cvData.skills.map((sk, i) => (
+                                        <span key={i} style={styles.skillTag}>{sk.name}</span>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -266,9 +291,14 @@ export default function CVBuilder({ user, job, onClose }) {
 
 const styles = {
     container: { display: 'flex', height: '100vh', background: '#f1f5f9', overflow:'hidden' },
-    editorPane: { width: '450px', background: '#fff', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', padding: '20px' },
+    editorPane: { background: '#fff', borderRight: '1px solid #e2e8f0', flexDirection: 'column', padding: '20px', boxSizing: 'border-box' },
     paneHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
     formScroll: { flex: 1, overflowY: 'auto', paddingRight:'10px' },
+    aiCard: { marginBottom: '20px', padding: '15px', background: '#eff6ff', borderRadius: '12px', border: '1px solid #dbeafe' },
+    aiLabel: { fontSize: '11px', fontWeight: '900', color: '#2563eb', textTransform: 'uppercase' },
+    templateBtn: { fontSize: '10px', background: '#fff', border: '1px solid #dbeafe', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer' },
+    aiLoading: { fontSize: '12px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '5px' },
+    aiText: { fontSize: '12px', color: '#1e40af', margin: 0 },
     photoUploadZone: { width: '80px', height: '80px', borderRadius: '12px', border: '2px dashed #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', background: '#f8fafc' },
     photoPlaceholder: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' },
     photoPreviewCircle: { width: '100%', height: '100%', objectFit: 'cover' },
@@ -283,13 +313,16 @@ const styles = {
     actionFooter: { display: 'flex', gap: '10px', paddingTop: '20px', borderTop:'1px solid #eee' },
     saveBtn: { flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #2563eb', color: '#2563eb', background: '#fff', cursor: 'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:'5px', fontWeight:'bold' },
     pdfBtn: { flex: 1, padding: '12px', borderRadius: '10px', border: 'none', color: '#fff', background: '#2563eb', cursor: 'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:'5px', fontWeight:'bold' },
-    previewPane: { flex: 1, padding: '40px', overflowY: 'auto', background: '#334155', display: 'flex', justifyContent: 'center' },
-    a4: { width: '210mm', minHeight: '297mm', background: '#fff', padding: '15mm', boxShadow: '0 0 40px rgba(0,0,0,0.5)', boxSizing:'border-box' },
+    previewPane: { flex: 1, padding: '20px', overflowY: 'auto', background: '#334155', display: 'flex', flexDirection:'column', alignItems: 'center' },
+    a4ScaleWrapper: { width: '100%', display: 'flex', justifyContent: 'center' },
+    a4: { width: '210mm', minHeight: '297mm', background: '#fff', padding: '15mm', boxShadow: '0 0 40px rgba(0,0,0,0.5)', boxSizing:'border-box', maxWidth: '100%' },
     cvHeader: { borderBottom: '2px solid #2563eb', paddingBottom: '15px', marginBottom: '15px' },
     cvName: { margin: 0, fontSize: '26px', fontWeight: '900', color:'#1e293b' },
     cvContact: { color: '#64748b', fontSize: '11px', marginTop:'5px' },
     cvBodyGrid: { display: 'flex', gap: '20px' },
     cvSectionTitle: { fontSize:'12px', fontWeight:'900', borderBottom:'1px solid #e2e8f0', paddingBottom:'4px', marginTop:'18px', marginBottom:'8px', textTransform:'uppercase', color:'#2563eb', display:'flex', alignItems:'center', gap:'6px' },
     cvText: { fontSize: '12px', lineHeight: '1.5', color:'#475569' },
-    skillTag: { background: '#f1f5f9', padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '600', color: '#334155', border: '1px solid #e2e8f0' }
+    skillTag: { background: '#f1f5f9', padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '600', color: '#334155', border: '1px solid #e2e8f0' },
+    mobileToggleBtn: { display: 'flex', alignItems: 'center', gap: '5px', background: '#2563eb', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' },
+    mobileBackBtn: { background: '#fff', border: '1px solid #e2e8f0', padding: '10px 20px', borderRadius: '8px', marginBottom: '20px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }
 };

@@ -6,10 +6,15 @@ const CourseSchema = new mongoose.Schema({
         required: [true, 'Course title is required'],
         trim: true 
     },
+    // Added instructor to know who to pay when course is sold
+    instructor: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
     category: { 
         type: String, 
         required: true,
-        // Removed strict enum to prevent "Invalid Category" errors from Admin Panel
         default: 'Development'
     },
     skillTag: { 
@@ -23,20 +28,31 @@ const CourseSchema = new mongoose.Schema({
         enum: ['Beginner', 'Intermediate', 'Expert'],
         default: 'Beginner'
     },
+    price: {
+        type: Number,
+        required: [true, 'Course price is required'],
+        min: [0, 'Price cannot be negative'],
+        default: 0 // 0 for free courses
+    },
     videoUrl: { 
         type: String, 
         required: [true, 'Video URL is required'],
-        // Validates that it is a YouTube link
         validate: {
             validator: function(v) {
+                // Expanded regex to catch all common video formats
                 return /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|vimeo\.com)\/.+$/.test(v);
             },
             message: props => `${props.value} is not a valid video URL!`
         }
     },
+    thumbnail: {
+        type: String,
+        default: 'https://via.placeholder.com/300x200?text=Course+Thumbnail'
+    },
     description: { 
         type: String, 
-        maxLength: [1000, 'Description cannot exceed 1000 characters'] 
+        required: [true, 'Description is required'],
+        maxLength: [2000, 'Description cannot exceed 2000 characters'] 
     },
     rewardXP: {
         type: Number,
@@ -50,7 +66,10 @@ const CourseSchema = new mongoose.Schema({
         question: { type: String, required: true },
         options: { 
             type: [String], 
-            validate: [v => v.length >= 2, 'Quiz must have at least 2 options'] 
+            validate: {
+                validator: (v) => v.length >= 2,
+                message: 'Quiz must have at least 2 options'
+            }
         },
         correctAnswer: { 
             type: Number, 
@@ -73,14 +92,26 @@ CourseSchema.virtual('studentCount').get(function() {
     return this.verifiedUsers ? this.verifiedUsers.length : 0;
 });
 
-// PRE-SAVE HOOK: Fix YouTube links for the iframe player automatically
+// PRE-SAVE HOOK: Robust YouTube Embed Logic
 CourseSchema.pre('save', function(next) {
-    if (this.videoUrl.includes('youtube.com/watch?v=')) {
-        this.videoUrl = this.videoUrl.replace('watch?v=', 'embed/');
-    } else if (this.videoUrl.includes('youtu.be/')) {
-        // Handle short links: youtu.be/VIDEO_ID -> youtube.com/embed/VIDEO_ID
-        const videoId = this.videoUrl.split('/').pop();
-        this.videoUrl = `https://www.youtube.com/embed/${videoId}`;
+    if (this.isModified('videoUrl')) {
+        let url = this.videoUrl;
+        
+        // Handle standard youtube.com/watch?v=...
+        if (url.includes('youtube.com/watch?v=')) {
+            const videoId = url.split('v=')[1].split('&')[0];
+            this.videoUrl = `https://www.youtube.com/embed/${videoId}`;
+        } 
+        // Handle short youtu.be/...
+        else if (url.includes('youtu.be/')) {
+            const videoId = url.split('/').pop().split('?')[0];
+            this.videoUrl = `https://www.youtube.com/embed/${videoId}`;
+        }
+        // Handle Vimeo
+        else if (url.includes('vimeo.com/')) {
+            const videoId = url.split('/').pop();
+            this.videoUrl = `https://player.vimeo.com/video/${videoId}`;
+        }
     }
     next();
 });

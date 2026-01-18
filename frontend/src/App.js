@@ -5,15 +5,16 @@ import { AnimatePresence, motion } from 'framer-motion';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Jobs from './pages/Jobs';
-import CVBuilder from './pages/CVBuilder'; // The fixed CV Architect
+import CVBuilder from './pages/CVBuilder'; 
 import Login from './pages/Login';
 import Signup from './pages/Signup'; 
 import UserProfile from './pages/UserProfile';
 import LearningHub from './pages/LearningHub';
 import VideoPlayer from './pages/VideoPlayer';
+import WalletDashboardMain from './pages/WalletDashboard'; // SYNCED: Importing the main dashboard
 
 export default function App() {
-    // 1. INITIAL STATES
+    // 1. INITIAL STATES & RESPONSIVENESS
     const [user, setUser] = useState(() => {
         const saved = localStorage.getItem('talentbd_v1');
         return saved ? JSON.parse(saved) : null;
@@ -22,6 +23,14 @@ export default function App() {
     const [view, setView] = useState('home');
     const [currentCourse, setCurrentCourse] = useState(null);
     const [selectedJobForAI, setSelectedJobForAI] = useState(null); 
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    // Responsive Tracker for HP-840 and Mobile
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const [allJobs, setAllJobs] = useState(() => {
         const saved = localStorage.getItem('talentbd_jobs');
@@ -48,7 +57,7 @@ export default function App() {
         localStorage.setItem('talentbd_courses', JSON.stringify(allCourses));
     }, [allJobs, allCourses]);
 
-    // 3. ACTION HANDLERS
+    // 3. ACTION HANDLERS (Core Logic Preservation)
     const handleAddJob = (job) => setAllJobs(prev => [{ ...job, id: Date.now() }, ...prev]);
     const handleAddCourse = (course) => setAllCourses(prev => [{ ...course, id: Date.now() }, ...prev]);
 
@@ -61,7 +70,6 @@ export default function App() {
             skills: user.skills ? [...new Set([...user.skills, skillName])] : [skillName]
         };
         setUser(updatedUser);
-        alert(`Verified: ${skillName}! +${cashReward} added to wallet.`);
     }, [user]);
 
     const handleLogout = () => {
@@ -70,29 +78,50 @@ export default function App() {
     };
 
     return (
-        <div style={{ background: '#f8fafc', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ background: '#f8fafc', minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
             <Navbar setView={setView} user={user} handleLogout={handleLogout} />
             
-            {/* Earning Status Bar */}
+            {/* 4. EARNING STATUS BAR (Responsive & Synced) */}
             <AnimatePresence>
-                {user && view !== 'cv-builder' && (
+                {user && view !== 'cv-builder' && view !== 'video-player' && (
                     <motion.div 
                         initial={{ y: -60, opacity: 0 }} 
                         animate={{ y: 0, opacity: 1 }} 
                         exit={{ y: -60, opacity: 0 }} 
-                        style={styles.earningBar} 
+                        style={{
+                            ...styles.earningBar,
+                            width: isMobile ? '95%' : 'auto',
+                            padding: isMobile ? '8px 15px' : '10px 24px'
+                        }} 
                         onClick={() => setView('dashboard')}
                     >
-                        <div style={styles.stat}>🏆 Level {Math.floor((user.points || 0) / 1000) + 1}</div>
+                        <div style={styles.stat}>🏆 <span style={{display: isMobile ? 'none' : 'inline'}}>Level</span> {Math.floor((user.points || 0) / 1000) + 1}</div>
                         <div style={styles.statSeparator} />
                         <div style={{...styles.stat, color: '#10b981'}}>💰 ${user.walletBalance || 0}.00</div>
+                        {!isMobile && (
+                            <>
+                                <div style={styles.statSeparator} />
+                                <div style={{...styles.stat, fontSize: '11px', opacity: 0.8}}>DASHBOARD <motion.div animate={{x: [0, 5, 0]}} transition={{repeat: Infinity}}>→</motion.div></div>
+                            </>
+                        )}
                     </motion.div>
                 )}
             </AnimatePresence>
 
-            <main style={{...styles.mainContent, paddingTop: user && view !== 'cv-builder' ? '140px' : '80px'}}>
+            {/* 5. MAIN ROUTER SECTION */}
+            <main style={{
+                ...styles.mainContent, 
+                paddingTop: user && view !== 'cv-builder' ? (isMobile ? '120px' : '140px') : '80px',
+                paddingBottom: '40px'
+            }}>
                 <AnimatePresence mode="wait">
-                    <motion.div key={view} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.2 }}>
+                    <motion.div 
+                        key={view} 
+                        initial={{ opacity: 0, y: 10 }} 
+                        animate={{ opacity: 1, y: 0 }} 
+                        exit={{ opacity: 0, y: -10 }} 
+                        transition={{ duration: 0.3 }}
+                    >
                         
                         {view === 'home' && <Home setView={setView} user={user} />}
                         {view === 'login' && <Login setUser={setUser} setView={setView} />}
@@ -135,13 +164,17 @@ export default function App() {
                             />
                         )}
 
-                        {view === 'dashboard' && <WalletDashboard user={user} setView={setView} />}
+                        {/* SYNCED: Using the High-End WalletDashboard if available, else fallback */}
+                        {view === 'dashboard' && (
+                            <WalletDashboardMain user={user} setView={setView} setUser={setUser} />
+                        )}
                         
                         {view === 'admin' && (
                             <AdminDashboardView 
                                 user={user}
                                 onJobPost={handleAddJob} 
                                 onSkillPost={handleAddCourse} 
+                                isMobile={isMobile}
                             />
                         )}
 
@@ -153,84 +186,74 @@ export default function App() {
     );
 }
 
-// --- SUB-COMPONENTS ---
+// --- SUB-COMPONENTS (Refined & Responsive) ---
 
-function WalletDashboard({ user, setView }) {
-    return (
-        <div style={dashStyles.container}>
-            <div style={dashStyles.card}>
-                <div style={dashStyles.cardLabel}>TALENT WALLET</div>
-                <div style={dashStyles.balance}>${user?.walletBalance || 0}.00</div>
-                <div style={{marginTop: '10px', color: '#64748b', fontSize: '14px', fontWeight:'600'}}>
-                    Rank: {user?.points || 0} XP
-                </div>
-                <div style={{display:'flex', gap:'10px', marginTop:'20px'}}>
-                    <button onClick={() => setView('learning')} style={{...styles.primaryBtn, flex:1}}>Earn More</button>
-                    <button onClick={() => alert("Withdrawal opens at $100")} style={{...styles.primaryBtn, background:'#f1f5f9', color:'#1e293b', flex:1}}>Withdraw</button>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function AdminDashboardView({ user, onJobPost, onSkillPost }) {
+function AdminDashboardView({ user, onJobPost, onSkillPost, isMobile }) {
     const [activeTab, setActiveTab] = useState('post-job');
     const [newJob, setNewJob] = useState({ title: '', reward: '', skill: '', type: 'Gig' });
     const [newSkill, setNewSkill] = useState({ title: '', tag: '', video: '' });
 
     if (user?.role !== 'admin') {
-        return <div style={{textAlign:'center', padding:'50px'}}>Access Denied. Admin Only.</div>;
+        return <div style={{textAlign:'center', padding:'100px 20px'}}>Access Denied. Contact Admin for portal entry.</div>;
     }
 
     return (
-        <div style={dashStyles.container}>
-            <h2 style={{marginBottom:'20px'}}>Admin Control Center</h2>
-            <div style={dashStyles.tabContainer}>
-                <button onClick={() => setActiveTab('post-job')} style={activeTab === 'post-job' ? styles.activeAdminBtn : styles.adminBtn}>MARKETPLACE</button>
-                <button onClick={() => setActiveTab('post-skill')} style={activeTab === 'post-skill' ? styles.activeAdminBtn : styles.adminBtn}>LEARNING HUB</button>
+        <div style={{...dashStyles.container, padding: isMobile ? '0' : '20px 0'}}>
+            <h2 style={{marginBottom:'30px', fontWeight: '900', letterSpacing: '-1px'}}>Admin Control Center</h2>
+            <div style={{...dashStyles.tabContainer, flexDirection: isMobile ? 'column' : 'row', gap: '5px'}}>
+                <button onClick={() => setActiveTab('post-job')} style={{
+                    ...(activeTab === 'post-job' ? styles.activeAdminBtn : styles.adminBtn),
+                    width: isMobile ? '100%' : 'auto'
+                }}>GIG MARKETPLACE</button>
+                <button onClick={() => setActiveTab('post-skill')} style={{
+                    ...(activeTab === 'post-skill' ? styles.activeAdminBtn : styles.adminBtn),
+                    width: isMobile ? '100%' : 'auto'
+                }}>LEARNING HUB</button>
             </div>
 
-            {activeTab === 'post-job' ? (
-                <div style={dashStyles.card}>
-                    <h3>Post New Job</h3>
-                    <input style={formStyles.input} placeholder="Job Title" value={newJob.title} onChange={e => setNewJob({...newJob, title: e.target.value})} />
-                    <input style={formStyles.input} placeholder="Reward ($)" value={newJob.reward} onChange={e => setNewJob({...newJob, reward: e.target.value})} />
-                    <input style={formStyles.input} placeholder="Skill Required" value={newJob.skill} onChange={e => setNewJob({...newJob, skill: e.target.value})} />
-                    <button style={styles.primaryBtn} onClick={() => {onJobPost(newJob); alert("Job Live!");}}>Publish Gig</button>
-                </div>
-            ) : (
-                <div style={dashStyles.card}>
-                    <h3>Add Skill Module</h3>
-                    <input style={formStyles.input} placeholder="Module Title" value={newSkill.title} onChange={e => setNewSkill({...newSkill, title: e.target.value})} />
-                    <input style={formStyles.input} placeholder="Target Skill" value={newSkill.tag} onChange={e => setNewSkill({...newSkill, tag: e.target.value})} />
-                    <input style={formStyles.input} placeholder="YouTube URL" value={newSkill.video} onChange={e => setNewSkill({...newSkill, video: e.target.value})} />
-                    <button style={styles.primaryBtn} onClick={() => {onSkillPost(newSkill); alert("Module Live!");}}>Publish Skill</button>
-                </div>
-            )}
+            <motion.div initial={{opacity:0}} animate={{opacity:1}} key={activeTab}>
+                {activeTab === 'post-job' ? (
+                    <div style={dashStyles.card}>
+                        <h3 style={{marginBottom:'20px'}}>Broadcast New Gig</h3>
+                        <input style={formStyles.input} placeholder="Job Title (e.g. Logo Design)" value={newJob.title} onChange={e => setNewJob({...newJob, title: e.target.value})} />
+                        <div style={{display:'flex', gap:'10px'}}>
+                            <input style={formStyles.input} placeholder="Reward ($)" value={newJob.reward} onChange={e => setNewJob({...newJob, reward: e.target.value})} />
+                            <input style={formStyles.input} placeholder="Required Skill" value={newJob.skill} onChange={e => setNewJob({...newJob, skill: e.target.value})} />
+                        </div>
+                        <button style={{...styles.primaryBtn, width: '100%'}} onClick={() => {onJobPost(newJob); alert("Gig Broadcasted!");}}>Push to Market</button>
+                    </div>
+                ) : (
+                    <div style={dashStyles.card}>
+                        <h3 style={{marginBottom:'20px'}}>Inject Skill Module</h3>
+                        <input style={formStyles.input} placeholder="Module Title" value={newSkill.title} onChange={e => setNewSkill({...newSkill, title: e.target.value})} />
+                        <input style={formStyles.input} placeholder="Target Skill Tag" value={newSkill.tag} onChange={e => setNewSkill({...newSkill, tag: e.target.value})} />
+                        <input style={formStyles.input} placeholder="YouTube Video URL" value={newSkill.video} onChange={e => setNewSkill({...newSkill, video: e.target.value})} />
+                        <button style={{...styles.primaryBtn, width: '100%', background: '#10b981'}} onClick={() => {onSkillPost(newSkill); alert("Module Injected!");}}>Activate Course</button>
+                    </div>
+                )}
+            </motion.div>
         </div>
     );
 }
 
-// --- STYLES (Synchronized with 2026 UI) ---
+// --- STYLES (Synchronized & Modernized) ---
 
 const styles = {
-    mainContent: { flex: 1, width: '100%', maxWidth: '1200px', margin: '0 auto', padding: '0 20px', transition: 'padding 0.3s ease' },
-    earningBar: { position: 'fixed', top: '70px', left: '50%', transform: 'translateX(-50%)', background: '#1e293b', color: '#fff', padding: '10px 24px', display: 'flex', alignItems: 'center', gap: '20px', zIndex: 40, borderRadius: '0 0 16px 16px', cursor: 'pointer', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' },
-    stat: { fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px', fontSize:'14px' },
-    statSeparator: { width: '1px', height: '16px', background: '#334155' },
-    primaryBtn: { background: '#2563eb', color: '#fff', border: 'none', padding: '14px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '14px', transition: 'all 0.2s' },
-    adminBtn: { background: '#fff', padding: '12px 24px', marginRight: '10px', cursor: 'pointer', border: '1px solid #e2e8f0', borderRadius: '8px', fontWeight: '600', color: '#64748b' },
-    activeAdminBtn: { background: '#2563eb', color: '#fff', padding: '12px 24px', marginRight: '10px', cursor: 'pointer', border: 'none', borderRadius: '8px', fontWeight: '600' }
+    mainContent: { flex: 1, width: '100%', maxWidth: '1200px', margin: '0 auto', transition: 'padding 0.3s ease' },
+    earningBar: { position: 'fixed', top: '70px', left: '50%', transform: 'translateX(-50%)', background: '#0f172a', color: '#fff', display: 'flex', alignItems: 'center', gap: '20px', zIndex: 40, borderRadius: '0 0 20px 20px', cursor: 'pointer', boxShadow: '0 15px 25px -5px rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', borderTop: 'none' },
+    stat: { fontWeight: '900', display: 'flex', alignItems: 'center', gap: '8px', fontSize:'13px', letterSpacing: '0.5px' },
+    statSeparator: { width: '1px', height: '14px', background: 'rgba(255,255,255,0.1)' },
+    primaryBtn: { background: '#2563eb', color: '#fff', border: 'none', padding: '14px', borderRadius: '12px', cursor: 'pointer', fontWeight: '800', fontSize: '14px', transition: 'all 0.2s', boxShadow: '0 4px 6px rgba(37, 99, 235, 0.2)' },
+    adminBtn: { background: '#fff', padding: '12px 24px', cursor: 'pointer', border: '1px solid #e2e8f0', borderRadius: '10px', fontWeight: '700', color: '#64748b', transition: '0.2s' },
+    activeAdminBtn: { background: '#0f172a', color: '#fff', padding: '12px 24px', cursor: 'pointer', border: 'none', borderRadius: '10px', fontWeight: '700', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }
 };
 
 const dashStyles = {
-    container: { padding: '20px 0', maxWidth: '600px', margin: '0 auto' },
-    card: { background: '#fff', padding: '30px', borderRadius: '24px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' },
-    cardLabel: { fontSize: '11px', color: '#94a3b8', fontWeight: '900', letterSpacing: '1.5px', marginBottom:'10px' },
-    balance: { fontSize: '48px', fontWeight: '900', color: '#10b981', letterSpacing:'-1px' },
-    tabContainer: { marginBottom: '25px', display: 'flex', background:'#f1f5f9', padding:'5px', borderRadius:'12px' }
+    container: { padding: '20px 0', maxWidth: '800px', margin: '0 auto' },
+    card: { background: '#fff', padding: '35px', borderRadius: '28px', border: '1px solid #e2e8f0', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.03)' },
+    tabContainer: { marginBottom: '30px', display: 'flex', background:'#f1f5f9', padding:'6px', borderRadius:'14px' }
 };
 
 const formStyles = {
-    input: { width: '100%', padding: '14px', marginBottom: '15px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '14px', background:'#f8fafc' }
+    input: { width: '100%', padding: '16px', marginBottom: '15px', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '15px', background:'#f8fafc', fontWeight: '600', outline: 'none', transition: '0.2s' }
 };

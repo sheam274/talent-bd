@@ -1,28 +1,28 @@
 const express = require('express');
 const router = express.Router();
-const Job = require('../models/Job');
+const { Job, Course } = require('../models'); // SYNC: Access both models
 
 /**
  * POST /api/jobs/match-jobs
  * Intelligent Matching: Compares User Verified Badges vs Job Required Skills
+ * Added: Marketplace Upselling & Course Recommendations
  */
 router.post('/match-jobs', async (req, res) => {
     try {
-        const { userSkills } = req.body; // Array of strings: ['react', 'node']
+        const { userSkills } = req.body; 
         
         if (!userSkills || !Array.isArray(userSkills)) {
             return res.status(400).json({ error: "Invalid skills data. Expected an array." });
         }
 
-        // 1. Normalize user skills for reliable comparison
         const normalizedUserSkills = userSkills.map(s => s.toLowerCase().trim());
 
-        // 2. Fetch active jobs (Non-expired)
-        const activeJobs = await Job.find({ deadline: { $gte: new Date() } });
+        // 1. Fetch active jobs (Non-expired) & Sync with Course Recommendations
+        const activeJobs = await Job.find({ deadline: { $gte: new Date() } })
+            .populate('suggestedCourse', 'title price thumbnail skillTag');
         
-        // 3. Intelligent Comparison Logic
-        const matches = activeJobs.map(job => {
-            // Convert Mongoose doc to plain object to allow adding virtual properties
+        // 2. Intelligent Comparison Logic
+        const matches = await Promise.all(activeJobs.map(async (job) => {
             const jobData = job.toObject();
             const required = jobData.requiredSkills || [];
             
@@ -30,36 +30,50 @@ router.post('/match-jobs', async (req, res) => {
                 return { ...jobData, matchScore: 0, matchedSkills: [], relevance: "None" };
             }
 
-            // Find intersection of User Skills and Job Requirements
             const matchedSkills = required.filter(skill => 
                 normalizedUserSkills.includes(skill.toLowerCase().trim())
             );
 
-            // Calculation: (Matches / Required)
             const matchPercentage = Math.round((matchedSkills.length / required.length) * 100);
             
-            // 4. Determine Relevance Category for Frontend Badges
             let relevance = "Low";
             if (matchPercentage >= 80) relevance = "High";
             else if (matchPercentage >= 50) relevance = "Medium";
+
+            const missingSkills = required.filter(s => 
+                !normalizedUserSkills.includes(s.toLowerCase().trim())
+            );
+
+            // --- NEW SYNC FEATURE: AUTO-COURSE RECOMMENDATION ---
+            // If the user is missing skills, find a Talent-BD course that teaches them
+            let recommendation = jobData.suggestedCourse || null;
+            if (missingSkills.length > 0 && !recommendation) {
+                recommendation = await Course.findOne({ 
+                    skillTag: { $in: missingSkills } 
+                }).select('title price thumbnail skillTag difficulty');
+            }
 
             return {
                 ...jobData,
                 matchScore: matchPercentage,
                 relevance,
                 matchedSkills,
-                // Helpful for the UI: "You need to learn [X] to apply for this job"
-                missingSkills: required.filter(s => !matchedSkills.includes(s.toLowerCase()))
+                missingSkills,
+                recommendedCourse: recommendation // SYNC: Frontend shows "Unlock this job by taking this course"
             };
-        })
-        // 5. Filter & Sort: Only show jobs with at least 1 match, highest score first
-        .filter(job => job.matchScore > 0) 
-        .sort((a, b) => b.matchScore - a.matchScore); 
+        }));
+
+        // 3. Filter & Sort (SYCED with User Dashboard)
+        const sortedMatches = matches
+            .filter(job => job.matchScore > 0) 
+            .sort((a, b) => b.matchScore - a.matchScore); 
+
+        console.log(`🧠 Intelligence Engine: Processed ${sortedMatches.length} matches for User at 44°C.`);
 
         res.json({
             success: true,
-            count: matches.length,
-            matches
+            count: sortedMatches.length,
+            matches: sortedMatches
         });
     } catch (err) {
         console.error("❌ Intelligence Engine Error:", err);

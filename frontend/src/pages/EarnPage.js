@@ -1,98 +1,115 @@
-import React, { useState } from 'react';
-import { Briefcase, Lock, CheckCircle, ArrowRight, DollarSign, Zap, ExternalLink } from 'lucide-react';
-
-// Sample GIGS data if not imported externally
-const GIGS = [
-    { id: 1, title: 'Fix React Header Bug', reward: 15, requiredSkill: 'React', description: 'Small CSS/State alignment issue on a navigation component.' },
-    { id: 2, title: 'Python Script for Scraping', reward: 40, requiredSkill: 'Python', description: 'Create a script to pull news data from 3 specific URLs.' },
-    { id: 3, title: 'Logo Design for Startup', reward: 25, requiredSkill: 'Figma', description: 'Minimalist logo design for a fintech mobile application.' }
-];
+import React, { useState, useEffect } from 'react';
+import { 
+    Briefcase, Lock, CheckCircle, ArrowRight, 
+    DollarSign, Zap, Globe, ShieldCheck, TrendingUp 
+} from 'lucide-react';
 
 export default function EarnPage({ user, setView }) {
-    const [submitting, setSubmitting] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
-    // FIXED: Ensure skills check is case-insensitive and handles undefined user skills
+    // Track responsiveness for HP-840 vs Mobile
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        // Simulate loading state for AI-driven gig matching
+        const timer = setTimeout(() => setLoading(false), 800);
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            clearTimeout(timer);
+        };
+    }, []);
+
     const userSkills = user?.skills || [];
 
+    // SYNC: Gig data with integrated skill-dependency logic
+    const GIGS = [
+        { id: 1, title: 'Fix React Header Bug', reward: 15, requiredSkill: 'React', category: 'Dev', urgency: 'High' },
+        { id: 2, title: 'Python Data Scraper', reward: 40, requiredSkill: 'Python', category: 'Data', urgency: 'Normal' },
+        { id: 3, title: 'Figma UI Component', reward: 25, requiredSkill: 'Figma', category: 'Design', urgency: 'Normal' },
+        { id: 4, title: 'Node.js API Auth Fix', reward: 60, requiredSkill: 'Node.js', category: 'Dev', urgency: 'Urgent' }
+    ];
+
     const handleApply = (gig) => {
-        // Logic to transition to a submission form or external link
-        alert(`🚀 Starting Task: ${gig.title}. Complete this to add $${gig.reward} to your TalentBD Wallet!`);
-        setSubmitting(gig);
+        alert(`🚀 CONTRACT ACTIVATED: ${gig.title}\nReward: $${gig.reward} will be credited to your TalentBD Wallet on approval.`);
     };
 
     return (
         <div style={styles.container}>
-            {/* Header Section */}
-            <header style={styles.header}>
+            {/* Header / Stats Bar */}
+            <header style={{...styles.header, flexDirection: isMobile ? 'column' : 'row'}}>
                 <div style={styles.headerText}>
-                    <h2 style={styles.title}>Gig Marketplace</h2>
-                    <p style={styles.subtitle}>Solve real problems for global clients to grow your wallet.</p>
+                    <div style={styles.liveBadge}><span style={styles.pulseDot}></span> Live Opportunities</div>
+                    <h2 style={styles.title}>Gig <span style={{color:'#2563eb'}}>Marketplace</span></h2>
+                    <p style={styles.subtitle}>Apply your verified skills to complete micro-tasks for global currency.</p>
                 </div>
-                <div style={styles.statCard}>
-                    <span style={styles.statLabel}>Verified Skills:</span>
+                
+                <div style={{...styles.statCard, width: isMobile ? '100%' : 'auto'}}>
+                    <div style={styles.statInfo}>
+                        <ShieldCheck size={16} color="#2563eb" />
+                        <span style={styles.statLabel}>Your Skill Arsenal:</span>
+                    </div>
                     <div style={styles.userSkills}>
                         {userSkills.length > 0 ? (
                             userSkills.map(s => <span key={s} style={styles.skillBadge}>{s}</span>)
                         ) : (
-                            <span style={{fontSize:'12px', color:'#94a3b8'}}>No skills earned yet</span>
+                            <button onClick={() => setView('learning')} style={styles.emptySkillBtn}>
+                                Verify your first skill
+                            </button>
                         )}
                     </div>
                 </div>
             </header>
 
-            {/* Gigs Grid */}
-            <div style={styles.grid}>
+            {/* Marketplace Grid */}
+            <div style={{
+                ...styles.grid, 
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(340px, 1fr))'
+            }}>
                 {GIGS.map(gig => {
-                    // SYNC: Improved skill matching logic
                     const unlocked = userSkills.some(s => s.toLowerCase() === gig.requiredSkill.toLowerCase());
                     
                     return (
                         <div key={gig.id} style={{
                             ...styles.gigCard,
-                            border: unlocked ? '1px solid #e2e8f0' : '1px solid #f1f5f9',
-                            opacity: unlocked ? 1 : 0.9
+                            borderColor: unlocked ? '#e2e8f0' : '#f1f5f9',
+                            background: unlocked ? '#fff' : '#fcfdfe'
                         }}>
-                            {/* Reward Tag */}
-                            <div style={styles.rewardBadge}>
-                                <DollarSign size={14} />
-                                {gig.reward}
+                            {/* Category & Status */}
+                            <div style={styles.cardHeader}>
+                                <span style={styles.categoryTag}>{gig.category}</span>
+                                {gig.urgency === 'Urgent' && <span style={styles.urgentTag}>Urgent</span>}
                             </div>
 
-                            <div style={styles.cardContent}>
-                                <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px'}}>
-                                    {unlocked ? 
-                                        <CheckCircle size={18} color="#16a34a" /> : 
-                                        <Lock size={18} color="#94a3b8" />
-                                    }
-                                    <h3 style={styles.gigTitle}>{gig.title}</h3>
-                                </div>
+                            <div style={styles.rewardBox}>
+                                <DollarSign size={16} />
+                                <span style={styles.rewardAmount}>{gig.reward}</span>
+                            </div>
+
+                            <div style={styles.cardBody}>
+                                <h3 style={{...styles.gigTitle, color: unlocked ? '#1e293b' : '#94a3b8'}}>
+                                    {gig.title}
+                                </h3>
                                 
-                                <p style={styles.gigDesc}>{gig.description}</p>
-                                
-                                <div style={styles.requirementBox}>
+                                <div style={styles.requirementRow}>
                                     <span style={styles.reqLabel}>Requirement:</span>
-                                    <span style={{
-                                        ...styles.reqSkill,
-                                        color: unlocked ? '#2563eb' : '#ef4444',
-                                        background: unlocked ? '#eff6ff' : '#fef2f2'
+                                    <div style={{
+                                        ...styles.reqBadge,
+                                        color: unlocked ? '#16a34a' : '#dc2626',
+                                        backgroundColor: unlocked ? '#f0fdf4' : '#fef2f2'
                                     }}>
+                                        {unlocked ? <CheckCircle size={12} /> : <Lock size={12} />}
                                         {gig.requiredSkill}
-                                    </span>
+                                    </div>
                                 </div>
 
                                 {unlocked ? (
-                                    <button 
-                                        onClick={() => handleApply(gig)} 
-                                        style={styles.applyBtn}
-                                    >
-                                        Apply Now <ArrowRight size={16} />
+                                    <button onClick={() => handleApply(gig)} style={styles.applyBtn}>
+                                        Start Gig <ArrowRight size={18} />
                                     </button>
                                 ) : (
-                                    <button 
-                                        onClick={() => setView('learning')} 
-                                        style={styles.lockBtn}
-                                    >
-                                        <Zap size={14} /> Unlock with {gig.requiredSkill} Course
+                                    <button onClick={() => setView('learning')} style={styles.lockBtn}>
+                                        <Zap size={14} /> Get {gig.requiredSkill} Certification
                                     </button>
                                 )}
                             </div>
@@ -100,97 +117,36 @@ export default function EarnPage({ user, setView }) {
                     );
                 })}
             </div>
-
-            {/* Empty State if no gigs */}
-            {GIGS.length === 0 && (
-                <div style={{textAlign:'center', padding:'100px 0'}}>
-                    <Briefcase size={48} color="#cbd5e1" style={{marginBottom:'15px'}} />
-                    <h3 style={{color:'#64748b'}}>Marketplace is currently resting.</h3>
-                    <p style={{color:'#94a3b8'}}>Check back later for new micro-tasks!</p>
-                </div>
-            )}
         </div>
     );
 }
 
 const styles = {
-    container: { maxWidth: '1100px', margin: '40px auto', padding: '0 20px', minHeight: '80vh' },
-    header: { 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: '40px',
-        flexWrap: 'wrap',
-        gap: '20px'
-    },
-    headerText: { flex: '1', minWidth: '300px' },
-    title: { fontSize: '32px', fontWeight: '900', color: '#1e293b', margin: 0, letterSpacing: '-1px' },
-    subtitle: { color: '#64748b', marginTop: '5px', fontSize: '16px' },
-    statCard: { background: '#fff', padding: '15px 20px', borderRadius: '16px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' },
-    statLabel: { fontSize: '11px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' },
-    userSkills: { display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px' },
-    skillBadge: { background: '#eff6ff', color: '#2563eb', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', border: '1px solid #dbeafe' },
-    grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '30px' },
-    gigCard: { 
-        background: '#fff', 
-        borderRadius: '20px', 
-        position: 'relative', 
-        overflow: 'hidden',
-        transition: 'all 0.3s ease',
-        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)',
-        border: '1px solid #e2e8f0'
-    },
-    rewardBadge: { 
-        position: 'absolute', 
-        top: '20px', 
-        right: '20px', 
-        background: '#dcfce7', 
-        color: '#166534', 
-        padding: '6px 14px', 
-        borderRadius: '20px', 
-        fontSize: '15px', 
-        fontWeight: '900',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '4px',
-        zIndex: 2
-    },
-    cardContent: { padding: '30px' },
-    gigTitle: { fontSize: '18px', fontWeight: '800', color: '#1e293b', margin: 0, lineHeight: '1.4' },
-    gigDesc: { fontSize: '14px', color: '#64748b', lineHeight: '1.6', margin: '15px 0' },
-    requirementBox: { marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '8px' },
-    reqLabel: { fontSize: '12px', color: '#94a3b8', fontWeight: '600' },
-    reqSkill: { padding: '5px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase' },
-    applyBtn: { 
-        width: '100%', 
-        padding: '14px', 
-        background: '#2563eb', 
-        color: '#fff', 
-        border: 'none', 
-        borderRadius: '12px', 
-        fontWeight: '800', 
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '8px',
-        transition: '0.2s',
-        boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)'
-    },
-    lockBtn: { 
-        width: '100%', 
-        padding: '14px', 
-        background: '#f8fafc', 
-        color: '#64748b', 
-        border: '1px dashed #cbd5e1', 
-        borderRadius: '12px', 
-        fontWeight: '700', 
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '8px',
-        fontSize: '13px',
-        transition: '0.2s'
-    }
+    container: { maxWidth: '1200px', margin: '40px auto', padding: '0 24px', minHeight: '85vh' },
+    header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '50px', gap: '30px' },
+    headerText: { flex: 1 },
+    liveBadge: { display: 'inline-flex', alignItems: 'center', gap: '8px', background: '#f0fdf4', color: '#16a34a', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '800', marginBottom: '12px', border: '1px solid #dcfce7' },
+    pulseDot: { width: '6px', height: '6px', background: '#16a34a', borderRadius: '50%', animation: 'pulse 1.5s infinite' },
+    title: { fontSize: '36px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1.5px' },
+    subtitle: { color: '#64748b', marginTop: '8px', fontSize: '16px', maxWidth: '500px', lineHeight: '1.5' },
+    statCard: { background: '#fff', padding: '20px', borderRadius: '24px', border: '1px solid #e2e8f0', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)', minWidth: '280px' },
+    statInfo: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' },
+    statLabel: { fontSize: '11px', fontWeight: '900', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' },
+    userSkills: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
+    skillBadge: { background: '#f1f5f9', color: '#1e293b', padding: '5px 14px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', border: '1px solid #e2e8f0' },
+    emptySkillBtn: { background: 'none', border: '1px dashed #cbd5e1', color: '#64748b', padding: '8px 15px', borderRadius: '10px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' },
+    grid: { display: 'grid', gap: '25px' },
+    gigCard: { borderRadius: '28px', border: '1px solid', position: 'relative', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', display: 'flex', flexDirection: 'column' },
+    cardHeader: { padding: '20px 25px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+    categoryTag: { fontSize: '10px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' },
+    urgentTag: { background: '#fff1f2', color: '#e11d48', fontSize: '10px', fontWeight: '800', padding: '2px 10px', borderRadius: '20px' },
+    rewardBox: { position: 'absolute', top: '20px', right: '25px', display: 'flex', alignItems: 'center', gap: '2px', background: '#0f172a', color: '#fff', padding: '6px 14px', borderRadius: '15px' },
+    rewardAmount: { fontSize: '18px', fontWeight: '900' },
+    cardBody: { padding: '30px 25px' },
+    gigTitle: { fontSize: '20px', fontWeight: '800', margin: '0 0 15px', lineHeight: '1.3' },
+    requirementRow: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '30px' },
+    reqLabel: { fontSize: '12px', color: '#64748b', fontWeight: '600' },
+    reqBadge: { display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '12px', fontSize: '12px', fontWeight: '800' },
+    applyBtn: { width: '100%', padding: '18px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '18px', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', transition: '0.2s', boxShadow: '0 10px 20px -5px rgba(37, 99, 235, 0.3)' },
+    lockBtn: { width: '100%', padding: '18px', background: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '18px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '13px' }
 };

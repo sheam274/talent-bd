@@ -11,10 +11,15 @@ const jobSchema = new mongoose.Schema({
         required: [true, 'Company name is required'],
         trim: true 
     },
+    // Added logo for a premium UI feel
+    companyLogo: {
+        type: String,
+        default: 'https://via.placeholder.com/150?text=Company+Logo'
+    },
     category: { 
         type: String, 
         required: true,
-        // Syncing categories with Course categories for a unified experience
+        // Syncing with Course categories
         enum: ['Development', 'Design', 'Marketing', 'Writing', 'Management', 'Other'],
         index: true 
     },
@@ -35,11 +40,12 @@ const jobSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    // CRITICAL SYNC: These strings match User.skills and Course.skillTag
+    // CRITICAL SYNC: Matches User.skills and Course.skillTag
     requiredSkills: {
         type: [String],
         lowercase: true,
-        default: []
+        default: [],
+        index: true
     },
     link: { 
         type: String,
@@ -55,10 +61,20 @@ const jobSchema = new mongoose.Schema({
     isFeatured: {
         type: Boolean,
         default: false
+    },
+    // NEW SYNC FEATURE: Track who applied from the Talent-BD platform
+    applicants: [{
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        appliedAt: { type: Date, default: Date.now }
+    }],
+    // NEW SYNC FEATURE: Recommended Course to get this job
+    suggestedCourse: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Course'
     }
 }, { 
     timestamps: true,
-    toJSON: { virtuals: true }, // Ensures isExpired shows up on frontend
+    toJSON: { virtuals: true }, 
     toObject: { virtuals: true }
 });
 
@@ -72,6 +88,11 @@ jobSchema.virtual('daysRemaining').get(function() {
     if (!this.deadline) return 0;
     const diff = new Date(this.deadline) - Date.now();
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+});
+
+// VIRTUAL: Applicant count for the "Exceptional" UI dashboard
+jobSchema.virtual('applicantCount').get(function() {
+    return this.applicants ? this.applicants.length : 0;
 });
 
 module.exports = mongoose.model('Job', jobSchema);

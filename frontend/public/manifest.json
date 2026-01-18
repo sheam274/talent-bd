@@ -1,25 +1,45 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "TalentBD",
+  "name": "TalentBD | CV Architect & Skill Marketplace",
+  "description": "Verify skills, scan resumes with ATS intelligence, and architect professional CVs.",
+  "id": "/?source=pwa",
   "icons": [
     {
       "src": "favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
+      "type": "image/x-icon",
+      "purpose": "any"
     },
     {
       "src": "logo192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "maskable"
     },
     {
       "src": "logo512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any"
     }
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "display_override": ["window-controls-overlay", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "theme_color": "#2563eb",
+  "background_color": "#f8fafc",
+  "categories": ["education", "productivity", "business"],
+  "shortcuts": [
+    {
+      "name": "CV Architect",
+      "url": "/cv-builder",
+      "description": "Open the professional CV builder"
+    },
+    {
+      "name": "Learning Hub",
+      "url": "/learning",
+      "description": "Earn skill badges and wallet rewards"
+    }
+  ]
 }

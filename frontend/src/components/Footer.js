@@ -1,7 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function Footer({ setView, setCategoryFilter }) {
-    // Helper component to handle hover effects for links
+    // State to handle responsiveness for the HP-840 screen vs Mobile
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     const FooterLink = ({ onClick, children }) => {
         const [isHovered, setIsHovered] = useState(false);
         return (
@@ -11,7 +19,8 @@ export default function Footer({ setView, setCategoryFilter }) {
                 onMouseLeave={() => setIsHovered(false)}
                 style={{
                     ...linkStyle,
-                    color: isHovered ? '#fff' : '#94a3b8'
+                    color: isHovered ? '#3b82f6' : '#94a3b8',
+                    transform: isHovered ? 'translateX(5px)' : 'translateX(0)'
                 }}
             >
                 {children}
@@ -19,11 +28,8 @@ export default function Footer({ setView, setCategoryFilter }) {
         );
     };
 
-    // FIXED: Function to handle category navigation from footer
     const handleCategoryClick = (category) => {
-        if (setCategoryFilter) {
-            setCategoryFilter(category);
-        }
+        if (setCategoryFilter) setCategoryFilter(category);
         setView('jobs');
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -31,18 +37,21 @@ export default function Footer({ setView, setCategoryFilter }) {
     return (
         <footer style={footerStyle}>
             <div style={containerStyle}>
-                <div style={gridStyle}>
+                <div style={{
+                    ...gridStyle,
+                    gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr 1fr 1fr'
+                }}>
                     {/* Brand Section */}
                     <div style={brandSectionStyle}>
                         <h2 style={logoStyle}>Talent<span style={{color: '#2563eb'}}>BD</span></h2>
                         <p style={taglineStyle}>
-                            The ultimate platform to Learn skills, earn XP, and get hired. 
-                            Connecting talent with the best opportunities in Bangladesh.
+                            Bangladesh's first gamified career ecosystem. Verify skills, 
+                            earn marketplace rewards, and architect your future.
                         </p>
                         <div style={socialLinksStyle}>
-                            <div style={socialIconStyle}>FB</div>
-                            <div style={socialIconStyle}>LI</div>
-                            <div style={socialIconStyle}>TW</div>
+                            <div title="Facebook" style={socialIconStyle}>FB</div>
+                            <div title="LinkedIn" style={socialIconStyle}>LI</div>
+                            <div title="GitHub" style={socialIconStyle}>GH</div>
                         </div>
                     </div>
 
@@ -53,92 +62,97 @@ export default function Footer({ setView, setCategoryFilter }) {
                         <FooterLink onClick={() => setView('jobs')}>Browse Jobs</FooterLink>
                         <FooterLink onClick={() => setView('learning-hub')}>Learning Hub</FooterLink>
                         <FooterLink onClick={() => setView('cv-builder')}>CV Builder</FooterLink>
+                        <FooterLink onClick={() => setView('ats-scanner')}>ATS Scanner</FooterLink>
                     </div>
 
-                    {/* Job Categories - Fixed to actually filter jobs */}
+                    {/* Job Categories */}
                     <div style={columnStyle}>
-                        <h4 style={headingStyle}>Categories</h4>
+                        <h4 style={headingStyle}>Marketplace</h4>
                         <FooterLink onClick={() => handleCategoryClick('Development')}>Development</FooterLink>
                         <FooterLink onClick={() => handleCategoryClick('Design')}>Design</FooterLink>
                         <FooterLink onClick={() => handleCategoryClick('Marketing')}>Marketing</FooterLink>
                         <FooterLink onClick={() => handleCategoryClick('Other')}>General Circulars</FooterLink>
                     </div>
 
-                    {/* Support */}
+                    {/* Account & Support */}
                     <div style={columnStyle}>
-                        <h4 style={headingStyle}>Support</h4>
-                        <FooterLink onClick={() => setView('help')}>Help Center</FooterLink>
+                        <h4 style={headingStyle}>Community</h4>
+                        <FooterLink onClick={() => setView('profile')}>My Dashboard</FooterLink>
+                        <FooterLink onClick={() => setView('leaderboard')}>Leaderboard</FooterLink>
+                        <FooterLink onClick={() => setView('help')}>Support Center</FooterLink>
                         <FooterLink onClick={() => setView('privacy')}>Privacy Policy</FooterLink>
-                        <FooterLink onClick={() => setView('contact')}>Contact Us</FooterLink>
                     </div>
                 </div>
 
                 <div style={bottomBarStyle}>
-                    <p>© 2026 TalentBD. Developed with ❤️ in Bangladesh.</p>
+                    <p>© 2026 <strong>TalentBD</strong>. All Rights Reserved.</p>
+                    <p style={{marginTop: '5px', fontSize: '10px', color: '#475569'}}>
+                        Optimized for HP-840 G3 | System Temp: 44°C
+                    </p>
                 </div>
             </div>
         </footer>
     );
 }
 
-// --- Footer Styling ---
+// --- Enhanced Footer Styling ---
 const footerStyle = { 
-    background: '#0f172a', 
+    background: '#020617', // Deeper midnight for better contrast
     color: '#94a3b8', 
-    padding: '60px 0 20px', 
-    marginTop: 'auto', // Push footer to bottom of page
+    padding: '80px 0 30px', 
+    marginTop: 'auto',
     width: '100%',
-    borderTop: '4px solid #2563eb' // Matches primary brand color
+    borderTop: '1px solid #1e293b'
 };
 
 const containerStyle = { 
     maxWidth: '1200px', 
     margin: '0 auto', 
-    padding: '0 20px',
+    padding: '0 30px',
     boxSizing: 'border-box'
 };
 
 const gridStyle = { 
     display: 'grid', 
-    // FIXED: Better responsive grid behavior
-    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
-    gap: '40px', 
-    marginBottom: '40px' 
+    gap: '50px', 
+    marginBottom: '60px' 
 };
 
-const brandSectionStyle = { minWidth: '250px' };
-const logoStyle = { color: '#fff', fontSize: '24px', fontWeight: '900', marginBottom: '15px', letterSpacing: '-0.5px' };
-const taglineStyle = { fontSize: '14px', lineHeight: '1.6', marginBottom: '20px' };
-const headingStyle = { color: '#fff', fontSize: '16px', fontWeight: 'bold', marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '1px' };
-const columnStyle = { display: 'flex', flexDirection: 'column', gap: '12px' };
+const brandSectionStyle = { maxWidth: '350px' };
+const logoStyle = { color: '#fff', fontSize: '28px', fontWeight: '900', marginBottom: '20px', letterSpacing: '-1px' };
+const taglineStyle = { fontSize: '15px', lineHeight: '1.7', marginBottom: '25px', color: '#64748b' };
+const headingStyle = { color: '#f8fafc', fontSize: '14px', fontWeight: '800', marginBottom: '25px', textTransform: 'uppercase', letterSpacing: '1.5px' };
+const columnStyle = { display: 'flex', flexDirection: 'column', gap: '15px' };
 
 const linkStyle = { 
     cursor: 'pointer', 
     fontSize: '14px', 
-    transition: '0.2s ease-in-out',
-    display: 'block'
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    display: 'inline-block',
+    fontWeight: '500'
 };
 
-const socialLinksStyle = { display: 'flex', gap: '12px' };
+const socialLinksStyle = { display: 'flex', gap: '15px' };
 const socialIconStyle = { 
-    background: '#1e293b', 
-    width: '40px', 
-    height: '40px', 
-    borderRadius: '10px', 
+    background: '#0f172a', 
+    width: '45px', 
+    height: '45px', 
+    borderRadius: '12px', 
     display: 'flex', 
     alignItems: 'center', 
     justifyContent: 'center', 
-    fontSize: '12px', 
-    fontWeight: 'bold',
-    color: '#fff', 
+    fontSize: '11px', 
+    fontWeight: '800',
+    color: '#3b82f6', 
     cursor: 'pointer',
+    border: '1px solid #1e293b',
     transition: '0.3s'
 };
 
 const bottomBarStyle = { 
-    borderTop: '1px solid #1e293b', 
-    paddingTop: '20px', 
+    borderTop: '1px solid #0f172a', 
+    paddingTop: '30px', 
     textAlign: 'center', 
-    fontSize: '12px',
-    opacity: '0.8'
+    fontSize: '13px',
+    color: '#64748b'
 };

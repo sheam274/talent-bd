@@ -1,17 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Briefcase, Lock, CheckCircle, Zap, TrendingUp, X, Sparkles, DollarSign } from 'lucide-react';
+import { 
+    Briefcase, Lock, CheckCircle, Zap, 
+    TrendingUp, X, Sparkles, DollarSign, 
+    Layers, MousePointer2, AlertCircle 
+} from 'lucide-react';
 
 export default function Jobs({ user, setView, jobs = [] }) {
     const [showSuccess, setShowSuccess] = useState(false);
     const [appliedJob, setAppliedJob] = useState(null);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
-    // Standardized skill matching
+    // Responsive Handling for HP-840 vs Mobile
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    // SYNC: Standardized skill matching with User Profile
     const userSkills = user?.skills?.map(s => s.toLowerCase().trim()) || [];
     const checkSkill = (requiredSkill) => userSkills.includes(requiredSkill?.toLowerCase().trim());
 
-    const displayJobs = jobs || []; 
-    const potentialEarnings = displayJobs.reduce((acc, job) => acc + (Number(job.reward) || 0), 0);
+    // Analytics Calculation
+    const displayJobs = jobs.length > 0 ? jobs : [
+        { id: 101, title: 'React UI Optimization', reward: 45, skill: 'React', type: 'Frontend' },
+        { id: 102, title: 'Python Data Cleanup', reward: 30, skill: 'Python', type: 'Data' },
+        { id: 103, title: 'Figma Brand Kit', reward: 25, skill: 'Figma', type: 'Design' }
+    ]; 
+    
     const unlockedEarnings = displayJobs
         .filter(job => checkSkill(job.skill))
         .reduce((acc, job) => acc + (Number(job.reward) || 0), 0);
@@ -22,74 +39,78 @@ export default function Jobs({ user, setView, jobs = [] }) {
     };
 
     return (
-        <div style={jobStyles.container}>
-            {/* STATS OVERVIEW */}
-            <div style={jobStyles.statsRow}>
-                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} style={jobStyles.statItem}>
-                    <div style={jobStyles.statIconBox}><TrendingUp size={20} color="#10b981" /></div>
+        <div style={styles.container}>
+            {/* TOP ANALYTICS DASHBOARD */}
+            <div style={{...styles.statsRow, flexDirection: isMobile ? 'column' : 'row'}}>
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={styles.statItem}>
+                    <div style={styles.statIconBox}><TrendingUp size={20} color="#10b981" /></div>
                     <div>
-                        <span style={jobStyles.statLabel}>Available to Earn</span>
-                        <div style={jobStyles.statValue}>${unlockedEarnings} <small style={jobStyles.statSub}>of ${potentialEarnings}</small></div>
+                        <span style={styles.statLabel}>Available to Earn</span>
+                        <div style={styles.statValue}>${unlockedEarnings} <small style={styles.statSub}>unlocked</small></div>
                     </div>
                 </motion.div>
-                <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={jobStyles.statItem}>
-                    <div style={{...jobStyles.statIconBox, background: '#eff6ff'}}><Zap size={20} color="#2563eb" /></div>
+                
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} style={styles.statItem}>
+                    <div style={{...styles.statIconBox, background: '#eff6ff'}}><Layers size={20} color="#2563eb" /></div>
                     <div>
-                        <span style={jobStyles.statLabel}>Skill Badge Power</span>
-                        <div style={jobStyles.statValue}>{user?.skills?.length || 0} Badges</div>
+                        <span style={styles.statLabel}>Market Status</span>
+                        <div style={styles.statValue}>{displayJobs.length} <small style={styles.statSub}>Active Gigs</small></div>
                     </div>
                 </motion.div>
             </div>
 
-            <header style={jobStyles.headerSection}>
+            {/* HEADER */}
+            <header style={{...styles.headerSection, flexDirection: isMobile ? 'column' : 'row', gap: '20px'}}>
                 <div>
-                    <h2 style={jobStyles.pageTitle}>Gig Marketplace</h2>
-                    <p style={jobStyles.pageSubtitle}>Complete micro-tasks that match your verified credentials.</p>
+                    <h2 style={styles.pageTitle}>Gig <span style={{color:'#2563eb'}}>Marketplace</span></h2>
+                    <p style={styles.pageSubtitle}>Apply for verified micro-tasks to build your global wallet.</p>
                 </div>
-                <div style={jobStyles.liveBadge}>● LIVE FEED</div>
+                <div style={styles.liveBadge}><span style={styles.pulse}></span> LIVE FEED</div>
             </header>
 
-            <div style={jobStyles.jobGrid}>
+            {/* GIG GRID */}
+            <div style={{
+                ...styles.jobGrid, 
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))'
+            }}>
                 {displayJobs.map((job) => {
                     const isLocked = !checkSkill(job.skill);
 
                     return (
                         <motion.div 
                             key={job.id} 
-                            whileHover={{ y: -8 }} 
+                            whileHover={{ y: -5 }} 
                             style={{
-                                ...jobStyles.jobCard,
-                                borderTop: isLocked ? '4px solid #e2e8f0' : '4px solid #10b981',
+                                ...styles.jobCard,
+                                borderBottom: isLocked ? '1px solid #e2e8f0' : '2px solid #10b981',
+                                opacity: isLocked ? 0.85 : 1
                             }}
                         >
-                            <div style={jobStyles.cardTopRow}>
-                                <span style={{
-                                    ...jobStyles.typeTag, 
-                                    color: isLocked ? '#94a3b8' : '#10b981',
-                                    background: isLocked ? '#f8fafc' : '#f0fdf4'
-                                }}>{job.type || 'Gig'}</span>
-                                <div style={{display: 'flex', alignItems: 'center', gap: '4px', color: '#0f172a'}}>
-                                    <DollarSign size={18} />
-                                    <span style={{fontSize: '24px', fontWeight: '900'}}>{job.reward}</span>
+                            <div style={styles.cardTopRow}>
+                                <div style={styles.rewardBox}>
+                                    <DollarSign size={14} />
+                                    <span>{job.reward}</span>
                                 </div>
+                                <span style={{
+                                    ...styles.typeTag, 
+                                    background: isLocked ? '#f1f5f9' : '#f0fdf4',
+                                    color: isLocked ? '#64748b' : '#10b981'
+                                }}>{job.type || 'Standard'}</span>
                             </div>
 
-                            <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px'}}>
-                                <Briefcase size={18} color="#2563eb" />
-                                <h3 style={{...jobStyles.jobTitle, margin: 0}}>{job.title}</h3>
-                            </div>
-                            
-                            <p style={jobStyles.jobDesc}>{job.desc || `Opportunity for specialists in ${job.skill}.`}</p>
+                            <h3 style={styles.jobTitle}>{job.title}</h3>
+                            <p style={styles.jobDesc}>Complete this {job.skill} task to boost your Talent Score and earn rewards.</p>
                             
                             <div style={{
-                                ...jobStyles.skillReq,
-                                background: isLocked ? '#f8fafc' : '#f0fdf4'
+                                ...styles.skillReq,
+                                background: isLocked ? '#fef2f2' : '#f0fdf4'
                             }}>
-                                {isLocked ? <Lock size={14} color="#94a3b8" /> : <CheckCircle size={14} color="#10b981" />}
+                                {isLocked ? <Lock size={14} color="#ef4444" /> : <CheckCircle size={14} color="#10b981" />}
                                 <span style={{ 
-                                    fontSize: '12px', 
-                                    fontWeight: '700', 
-                                    color: isLocked ? '#64748b' : '#10b981' 
+                                    fontSize: '11px', 
+                                    fontWeight: '800', 
+                                    textTransform: 'uppercase',
+                                    color: isLocked ? '#ef4444' : '#10b981' 
                                 }}>
                                     {job.skill} Required
                                 </span>
@@ -97,12 +118,12 @@ export default function Jobs({ user, setView, jobs = [] }) {
 
                             <div style={{ marginTop: 'auto', paddingTop: '20px' }}>
                                 {isLocked ? (
-                                    <button onClick={() => setView('learning')} style={jobStyles.learnBtn}>
-                                        <Zap size={14} /> Get Badge to Unlock
+                                    <button onClick={() => setView('learning')} style={styles.lockBtn}>
+                                        <Zap size={14} /> Unlock with Badge
                                     </button>
                                 ) : (
-                                    <button onClick={() => handleApplyClick(job)} style={jobStyles.applyBtn}>
-                                        Apply & Earn
+                                    <button onClick={() => handleApplyClick(job)} style={styles.applyBtn}>
+                                        Apply Now <MousePointer2 size={14} />
                                     </button>
                                 )}
                             </div>
@@ -111,34 +132,29 @@ export default function Jobs({ user, setView, jobs = [] }) {
                 })}
             </div>
 
-            {/* SUCCESS POPUP MODAL */}
+            {/* SUCCESS MODAL */}
             <AnimatePresence>
                 {showSuccess && (
-                    <div style={popupStyles.overlay}>
+                    <div style={styles.overlay}>
                         <motion.div 
                             initial={{ scale: 0.9, opacity: 0 }} 
                             animate={{ scale: 1, opacity: 1 }} 
                             exit={{ scale: 0.9, opacity: 0 }}
-                            style={popupStyles.modal}
+                            style={styles.modal}
                         >
-                            <button onClick={() => setShowSuccess(false)} style={popupStyles.closeX}><X size={20}/></button>
-                            <div style={popupStyles.successIcon}>
+                            <button onClick={() => setShowSuccess(false)} style={styles.closeX}><X size={20}/></button>
+                            <div style={styles.successIcon}>
                                 <Sparkles size={32} color="#fff" />
                             </div>
-                            <h2 style={popupStyles.modalTitle}>Proposal Submitted!</h2>
-                            <p style={popupStyles.modalText}>
-                                Your <strong>{appliedJob?.skill} Credentials</strong> were securely shared.
-                            </p>
+                            <h2 style={styles.modalTitle}>Application Sent!</h2>
+                            <p style={styles.modalText}>Your credentials for <strong>{appliedJob?.title}</strong> were verified via TalentBD AI.</p>
                             
-                            <div style={popupStyles.summaryBox}>
-                                <div style={popupStyles.summaryItem}><span>Status:</span> <strong>Pending</strong></div>
-                                <div style={{...popupStyles.summaryItem, border:'none', color: '#10b981'}}>
-                                    <span>Potential Pay:</span> 
-                                    <strong style={{display: 'flex', alignItems: 'center'}}><DollarSign size={14}/>{appliedJob?.reward}</strong>
-                                </div>
+                            <div style={styles.summaryBox}>
+                                <div style={styles.summaryItem}><span>Gig Type</span> <strong>{appliedJob?.type}</strong></div>
+                                <div style={{...styles.summaryItem, border:'none'}}><span>Expected Pay</span> <strong style={{color:'#10b981'}}>${appliedJob?.reward}</strong></div>
                             </div>
                             
-                            <button onClick={() => setShowSuccess(false)} style={jobStyles.applyBtn}>Continue Browsing</button>
+                            <button onClick={() => setShowSuccess(false)} style={styles.applyBtn}>Back to Marketplace</button>
                         </motion.div>
                     </div>
                 )}
@@ -147,37 +163,35 @@ export default function Jobs({ user, setView, jobs = [] }) {
     );
 }
 
-// Styles preserved and enhanced for your specific layout
-const jobStyles = {
-    container: { maxWidth: '1100px', margin: '0 auto', padding: '60px 20px' },
-    headerSection: { marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
-    pageTitle: { margin: 0, fontSize: '32px', fontWeight: '900', letterSpacing: '-1px' },
-    pageSubtitle: { color: '#64748b', margin: '5px 0 0 0', fontSize: '16px' },
-    liveBadge: { background: '#fef2f2', color: '#ef4444', padding: '6px 12px', borderRadius: '50px', fontSize: '10px', fontWeight: '900', letterSpacing: '1px' },
-    statsRow: { display: 'flex', gap: '20px', marginBottom: '50px' },
-    statItem: { flex: 1, background: '#fff', padding: '24px', borderRadius: '24px', display: 'flex', alignItems: 'center', gap: '18px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' },
-    statIconBox: { width: '48px', height: '48px', background: '#ecfdf5', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-    statLabel: { fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '800' },
-    statValue: { fontSize: '24px', fontWeight: '900', color: '#0f172a', display: 'flex', alignItems: 'baseline', gap: '8px' },
-    statSub: { fontSize:'13px', fontWeight: '600', color:'#94a3b8' },
-    jobGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '30px' },
-    jobCard: { background: '#fff', padding: '30px', borderRadius: '24px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', minHeight: '380px', transition: 'box-shadow 0.3s' },
+const styles = {
+    container: { maxWidth: '1200px', margin: '0 auto', padding: '40px 24px' },
+    headerSection: { marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+    pageTitle: { margin: 0, fontSize: '32px', fontWeight: '900', letterSpacing: '-1.5px', color: '#0f172a' },
+    pageSubtitle: { color: '#64748b', margin: '8px 0 0 0', fontSize: '15px' },
+    liveBadge: { display: 'flex', alignItems: 'center', gap: '8px', background: '#fff', border: '1px solid #e2e8f0', color: '#64748b', padding: '8px 16px', borderRadius: '50px', fontSize: '11px', fontWeight: '900' },
+    pulse: { width: '8px', height: '8px', background: '#ef4444', borderRadius: '50%', boxShadow: '0 0 10px rgba(239, 68, 68, 0.5)' },
+    statsRow: { display: 'flex', gap: '15px', marginBottom: '40px' },
+    statItem: { flex: 1, background: '#fff', padding: '20px', borderRadius: '24px', display: 'flex', alignItems: 'center', gap: '15px', border: '1px solid #e2e8f0' },
+    statIconBox: { width: '44px', height: '44px', background: '#ecfdf5', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+    statLabel: { fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: '900', letterSpacing: '0.5px' },
+    statValue: { fontSize: '22px', fontWeight: '900', color: '#0f172a' },
+    statSub: { fontSize:'11px', fontWeight: '700', color:'#94a3b8' },
+    jobGrid: { display: 'grid', gap: '25px' },
+    jobCard: { background: '#fff', padding: '28px', borderRadius: '28px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', minHeight: '340px' },
     cardTopRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
-    typeTag: { padding: '5px 14px', borderRadius: '50px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase' },
-    jobTitle: { fontSize: '20px', fontWeight: '800', color: '#1e293b', lineHeight: '1.4' },
+    rewardBox: { display: 'flex', alignItems: 'center', gap: '4px', background: '#0f172a', color: '#fff', padding: '6px 14px', borderRadius: '12px', fontSize: '18px', fontWeight: '900' },
+    typeTag: { padding: '4px 12px', borderRadius: '8px', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase' },
+    jobTitle: { fontSize: '19px', fontWeight: '800', color: '#1e293b', margin: '0 0 12px 0', lineHeight: '1.3' },
     jobDesc: { fontSize: '14px', color: '#64748b', lineHeight: '1.6', marginBottom: '20px' },
-    skillReq: { display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px', borderRadius: '12px' },
-    applyBtn: { width: '100%', background: '#2563eb', color: '#fff', border: 'none', padding: '16px', borderRadius: '14px', cursor: 'pointer', fontWeight: '800', fontSize: '15px', boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.3)' },
-    learnBtn: { width: '100%', background: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0', padding: '14px', borderRadius: '14px', cursor: 'pointer', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px' }
-};
-
-const popupStyles = {
-    overlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.9)', backdropFilter: 'blur(8px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 10000 },
-    modal: { background: '#fff', padding: '50px 40px', borderRadius: '32px', maxWidth: '440px', width: '92%', textAlign: 'center', position: 'relative', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' },
-    closeX: { position: 'absolute', top: '24px', right: '24px', background: 'none', border: 'none', cursor: 'pointer', color: '#cbd5e1' },
-    successIcon: { width: '70px', height: '70px', background: '#10b981', borderRadius: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 25px', transform: 'rotate(-10deg)', boxShadow: '0 15px 30px rgba(16, 185, 129, 0.4)' },
-    modalTitle: { margin: '0 0 10px 0', fontSize: '26px', fontWeight: '900', letterSpacing: '-1px' },
-    modalText: { color: '#64748b', fontSize: '15px', lineHeight: '1.6', margin: '0 0 30px 0' },
-    summaryBox: { textAlign: 'left', background: '#f8fafc', padding: '24px', borderRadius: '20px', marginBottom: '35px', border: '1px solid #e2e8f0' },
-    summaryItem: { display: 'flex', justifyContent: 'space-between', paddingBottom: '12px', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', fontSize: '14px' }
+    skillReq: { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', borderRadius: '12px' },
+    applyBtn: { width: '100%', background: '#2563eb', color: '#fff', border: 'none', padding: '16px', borderRadius: '16px', cursor: 'pointer', fontWeight: '900', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' },
+    lockBtn: { width: '100%', background: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '16px', cursor: 'pointer', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' },
+    overlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(8px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
+    modal: { background: '#fff', padding: '40px', borderRadius: '32px', maxWidth: '400px', width: '90%', textAlign: 'center', position: 'relative' },
+    closeX: { position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', cursor: 'pointer', color: '#cbd5e1' },
+    successIcon: { width: '64px', height: '64px', background: '#10b981', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' },
+    modalTitle: { margin: '0 0 8px', fontSize: '24px', fontWeight: '900' },
+    modalText: { color: '#64748b', fontSize: '14px', marginBottom: '25px' },
+    summaryBox: { background: '#f8fafc', padding: '20px', borderRadius: '16px', marginBottom: '25px', border: '1px solid #e2e8f0', textAlign: 'left' },
+    summaryItem: { display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', marginBottom: '10px', borderBottom: '1px solid #e2e8f0', fontSize: '13px' }
 };

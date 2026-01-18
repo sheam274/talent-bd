@@ -1,6 +1,6 @@
 {
-  "name": "frontend",
-  "version": "0.1.0",
+  "name": "talentbd-2026-platform",
+  "version": "1.0.0",
   "private": true,
   "dependencies": {
     "@testing-library/dom": "^10.4.1",
@@ -15,13 +15,23 @@
     "react-dom": "^19.2.3",
     "react-router-dom": "^7.11.0",
     "react-scripts": "^5.0.1",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    
+    
+    "recharts": "^2.15.0",           
+    "clsx": "^2.1.1",               
+    "tailwind-merge": "^2.6.0",     
+    "date-fns": "^4.1.0",           
+    "react-confetti": "^6.2.0",   
+    "axios": "^1.7.9"               
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    
+    "clean": "rm -rf build && npm run build"
   },
   "eslintConfig": {
     "extends": [
@@ -33,7 +43,8 @@
     "production": [
       ">0.2%",
       "not dead",
-      "not op_mini all"
+      "not op_mini all",
+      "not ie 11"
     ],
     "development": [
       "last 1 chrome version",

@@ -11,19 +11,27 @@ const UserSchema = new mongoose.Schema({
     points: { type: Number, default: 0 },         
     walletBalance: { type: Number, default: 0 },   
     
-    // --- Verified Skills (Populated from Learning Hub) ---
-    skills: { type: [String], default: [] }, 
+    // --- SYNCED DATA: Verified Skills & Activity ---
+    // These update automatically when a Course is finished
+    skills: { type: [String], default: [], index: true }, 
+    purchasedCourses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
+    completedCourses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
 
-    // --- Bookmarks (Relation to Job Model) ---
+    // --- Bookmarks & Applications (Relation to Job Model) ---
     bookmarks: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Job' }],
+    appliedJobs: [{
+        jobId: { type: mongoose.Schema.Types.ObjectId, ref: 'Job' },
+        appliedAt: { type: Date, default: Date.now },
+        status: { type: String, enum: ['Pending', 'Reviewed', 'Accepted', 'Rejected'], default: 'Pending' }
+    }],
 
-    // --- The Professional CV Builder Data ---
+    // --- The Professional CV Builder Data (Strictly Maintained) ---
     savedCV: {
         name: { type: String },
         email: { type: String },
         phone: { type: String },
         summary: { type: String },
-        profileImage: { type: String }, 
+        profileImage: { type: String, default: 'https://via.placeholder.com/150?text=Profile' }, 
         LinkedIn: { type: String },
         nationality: { type: String },
         dob: { type: String },
@@ -63,10 +71,11 @@ const UserSchema = new mongoose.Schema({
         }]
     },
     
-    role: { type: String, enum: ['user', 'admin'], default: 'user' }
+    // Updated Role to support the Marketplace pivot
+    role: { type: String, enum: ['user', 'instructor', 'admin'], default: 'user' }
 }, { 
     timestamps: true,
-    toJSON: { virtuals: true }, // FIXED: Necessary for 'level' to show on Frontend
+    toJSON: { virtuals: true }, 
     toObject: { virtuals: true }
 });
 
@@ -82,9 +91,19 @@ UserSchema.pre('save', async function(next) {
     }
 });
 
-// VIRTUAL: Calculate Level based on XP
+// VIRTUAL: Calculate Level based on XP (Responsive to points updates)
 UserSchema.virtual('level').get(function() {
     return Math.floor(this.points / 1000) + 1;
+});
+
+// VIRTUAL: Profile Completion Percentage (For the "Exceptional" UI)
+UserSchema.virtual('profileComplete').get(function() {
+    let score = 0;
+    if (this.savedCV.summary) score += 20;
+    if (this.savedCV.profileImage) score += 20;
+    if (this.savedCV.experience.length > 0) score += 30;
+    if (this.savedCV.education.length > 0) score += 30;
+    return score;
 });
 
 module.exports = mongoose.model('User', UserSchema);

@@ -1,25 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom'; // Added missing import
 import { 
     Menu, X, BookOpen, Briefcase, User, LogOut, 
-    ChevronRight, Settings, Sparkles 
+    ChevronRight, Settings, Sparkles, Wallet 
 } from 'lucide-react';
 
 const Navbar = ({ setView, user, handleLogout }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
     const [hoveredItem, setHoveredItem] = useState(null);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
+    // SYNC: Handle Screen Resize for Responsive Logic
     useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 1024);
         const handleScroll = () => setScrolled(window.scrollY > 20);
+        
+        window.addEventListener('resize', handleResize);
         window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            window.removeEventListener('scroll', handleScroll);
+        };
     }, []);
 
     const navItems = [
         { label: 'Find Jobs', icon: <Briefcase size={18}/>, view: 'jobs' },
         { label: 'Learning Hub', icon: <BookOpen size={18}/>, view: 'learning' },
         { label: 'CV Builder', icon: <Sparkles size={18}/>, view: 'cv-builder' },
+        { label: 'ATS Scanner', icon: <Settings size={18}/>, view: 'ats-scanner' }, // SYNC: Added for quick access
     ];
 
     const handleNav = (view) => {
@@ -27,92 +35,99 @@ const Navbar = ({ setView, user, handleLogout }) => {
             setView(view);
             setIsOpen(false);
             window.scrollTo({ top: 0, behavior: 'smooth' });
-        } else {
-            console.error("setView prop is missing in Navbar!");
         }
     };
 
     return (
         <nav style={{
             ...navStyles.nav,
-            backgroundColor: scrolled ? 'rgba(255, 255, 255, 0.95)' : '#ffffff',
-            backdropFilter: scrolled ? 'blur(12px)' : 'none',
-            boxShadow: scrolled ? '0 4px 20px rgba(0,0,0,0.08)' : '0 1px 0 rgba(0,0,0,0.05)',
+            backgroundColor: scrolled ? 'rgba(255, 255, 255, 0.85)' : '#ffffff',
+            backdropFilter: scrolled ? 'blur(16px)' : 'none',
+            borderBottom: scrolled ? '1px solid rgba(226, 232, 240, 0.8)' : '1px solid #f1f5f9',
+            boxShadow: scrolled ? '0 10px 15px -3px rgba(0, 0, 0, 0.05)' : 'none',
         }}>
             <div style={navStyles.container}>
-                {/* Logo */}
+                {/* Logo Section */}
                 <div style={navStyles.logo} onClick={() => handleNav('home')}>
                     <div style={navStyles.logoIcon}>T</div>
-                    Talent<span style={{color: '#2563eb'}}>BD</span>
+                    <span style={{display: isMobile && user ? 'none' : 'block'}}>
+                        Talent<span style={{color: '#2563eb'}}>BD</span>
+                    </span>
                 </div>
 
-                {/* Desktop Menu */}
-                <div className="desktop-nav-wrapper" style={navStyles.desktopMenu}>
-                    {navItems.map((item) => (
-                        <button 
-                            key={item.view} 
-                            onClick={() => handleNav(item.view)} 
-                            onMouseEnter={() => setHoveredItem(item.view)}
-                            onMouseLeave={() => setHoveredItem(null)}
-                            style={{
-                                ...navStyles.link,
-                                color: hoveredItem === item.view ? '#2563eb' : '#64748b'
-                            }}
-                        >
-                            {item.label}
-                            {hoveredItem === item.view && <div style={navStyles.underline} />}
-                        </button>
-                    ))}
-                    
-                    {user?.role === 'admin' && (
-                        <button 
-                            onClick={() => handleNav('admin')}
-                            style={{...navStyles.link, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '4px'}}
-                        >
-                            <Settings size={16} /> Admin
-                        </button>
-                    )}
-                    
-                    <div style={navStyles.divider} />
+                {/* Desktop Navigation */}
+                {!isMobile && (
+                    <div style={navStyles.desktopMenu}>
+                        {navItems.map((item) => (
+                            <button 
+                                key={item.view} 
+                                onClick={() => handleNav(item.view)} 
+                                onMouseEnter={() => setHoveredItem(item.view)}
+                                onMouseLeave={() => setHoveredItem(null)}
+                                style={{
+                                    ...navStyles.link,
+                                    color: hoveredItem === item.view ? '#2563eb' : '#64748b'
+                                }}
+                            >
+                                {item.label}
+                                {(hoveredItem === item.view || item.view === 'current') && <div style={navStyles.underline} />}
+                            </button>
+                        ))}
+                        
+                        {user?.role === 'admin' && (
+                            <button onClick={() => handleNav('admin')} style={navStyles.adminLink}>
+                                <Settings size={16} /> Admin
+                            </button>
+                        )}
+                    </div>
+                )}
 
+                {/* Action Group (Points & Profile) */}
+                <div style={navStyles.actionGroup}>
                     {user ? (
                         <div style={navStyles.userGroup}>
-                            <div style={navStyles.statsGroup}>
-                                <span style={navStyles.pointsBadge}>{user.points || 0} XP</span>
+                            {/* SYNC: Wallet Balance (Shows real money earned from Quizzes) */}
+                            <div style={navStyles.walletBadge} title="Wallet Balance">
+                                <Wallet size={14} />
+                                <span>৳{user.walletBalance || 0}</span>
                             </div>
-                            {/* INTEGRATED: ChevronRight added to Profile button as requested */}
-                            <button 
-                                onClick={() => handleNav('profile')} 
-                                style={navStyles.profileBtn}
-                            >
+
+                            {!isMobile && (
+                                <div style={navStyles.pointsBadge}>
+                                    {user.points || 0} XP
+                                </div>
+                            )}
+
+                            <button onClick={() => handleNav('profile')} style={navStyles.profileBtn}>
                                 <div style={navStyles.avatar}>
                                     {user.name ? user.name[0].toUpperCase() : 'U'}
                                 </div>
-                                <span className="nav-name-hide">{user.name?.split(' ')[0]}</span>
-                                <ChevronRight size={14} style={{marginLeft: '4px', opacity: 0.7}} />
+                                {!isMobile && <span style={{maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{user.name?.split(' ')[0]}</span>}
+                                <ChevronRight size={14} style={{opacity: 0.5}} />
                             </button>
-                            <button onClick={handleLogout} style={navStyles.logoutIconBtn} title="Logout">
-                                <LogOut size={18} />
-                            </button>
+
+                            {!isMobile && (
+                                <button onClick={handleLogout} style={navStyles.logoutIconBtn}>
+                                    <LogOut size={18} />
+                                </button>
+                            )}
                         </div>
                     ) : (
                         <button onClick={() => handleNav('login')} style={navStyles.premiumBtn}>
                             Login
                         </button>
                     )}
-                </div>
 
-                {/* Mobile Toggle */}
-                <div className="mobile-only-flex" style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
-                     {!isOpen && user && <span style={navStyles.pointsBadgeMobile}>{user.points || 0} XP</span>}
-                    <button style={navStyles.mobileToggle} onClick={() => setIsOpen(!isOpen)}>
-                        {isOpen ? <X size={26} /> : <Menu size={26} />}
-                    </button>
+                    {isMobile && (
+                        <button style={navStyles.mobileToggle} onClick={() => setIsOpen(!isOpen)}>
+                            {isOpen ? <X size={26} /> : <Menu size={26} />}
+                        </button>
+                    )}
                 </div>
             </div>
 
-            {/* Mobile Dropdown */}
-            {isOpen && (
+            {/* Mobile Dropdown (Responsive & Synced) */}
+            {isOpen && isMobile && (
                 <div style={navStyles.mobileMenu}>
                     {navItems.map((item) => (
                         <button key={item.view} onClick={() => handleNav(item.view)} style={navStyles.mobileLink}>
@@ -120,24 +135,18 @@ const Navbar = ({ setView, user, handleLogout }) => {
                             {item.label}
                         </button>
                     ))}
-                    {user?.role === 'admin' && (
-                         <button onClick={() => handleNav('admin')} style={{...navStyles.mobileLink, color: '#f59e0b'}}>
-                            <span style={{...navStyles.mobileIconWrapper, color: '#f59e0b'}}><Settings size={18} /></span> Admin Panel
-                        </button>
-                    )}
-                    <div style={{margin: '10px 0', borderTop: '1px solid #f1f5f9'}} />
                     {user ? (
                         <>
+                            <div style={navStyles.mobileDivider} />
                             <button onClick={() => handleNav('profile')} style={navStyles.mobileLink}>
-                                <span style={navStyles.mobileIconWrapper}><User size={18} /></span> 
-                                My Profile <ChevronRight size={14} style={{marginLeft: 'auto'}} />
+                                <span style={navStyles.mobileIconWrapper}><User size={18} /></span> Profile Settings
                             </button>
                             <button onClick={handleLogout} style={{...navStyles.mobileLink, color: '#ef4444'}}>
                                 <span style={{...navStyles.mobileIconWrapper, color: '#ef4444'}}><LogOut size={18} /></span> Logout
                             </button>
                         </>
                     ) : (
-                        <button onClick={() => handleNav('login')} style={navStyles.mobilePremiumBtn}>Get Started</button>
+                        <button onClick={() => handleNav('login')} style={navStyles.mobilePremiumBtn}>Join Now</button>
                     )}
                 </div>
             )}
@@ -145,29 +154,30 @@ const Navbar = ({ setView, user, handleLogout }) => {
     );
 };
 
-// --- Styles unchanged to preserve features ---
+// --- Exceptional Styles (HP-840 Optimized) ---
 const navStyles = {
-    nav: { position: 'fixed', top: 0, left: 0, right: 0, height: '70px', display: 'flex', alignItems: 'center', transition: 'all 0.3s ease', zIndex: 2000 },
-    container: { width: '100%', maxWidth: '1200px', margin: '0 auto', padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-    logo: { fontSize: '22px', fontWeight: '800', cursor: 'pointer', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px', letterSpacing: '-0.5px' },
-    logoIcon: { background: '#2563eb', color: '#fff', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 'bold' },
-    desktopMenu: { display: 'flex', gap: '20px', alignItems: 'center' },
-    link: { background: 'none', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '14px', position: 'relative', padding: '8px 0', transition: 'color 0.2s ease', fontFamily: 'inherit' },
-    underline: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '2px', background: '#2563eb', borderRadius: '2px' },
-    divider: { width: '1px', height: '24px', background: '#e2e8f0', margin: '0 8px' },
-    premiumBtn: { background: '#2563eb', color: '#fff', border: 'none', padding: '10px 24px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)' },
+    nav: { position: 'fixed', top: 0, left: 0, right: 0, height: '72px', display: 'flex', alignItems: 'center', transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)', zIndex: 2000 },
+    container: { width: '100%', maxWidth: '1400px', margin: '0 auto', padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+    logo: { fontSize: '24px', fontWeight: '900', cursor: 'pointer', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '-0.8px' },
+    logoIcon: { background: '#2563eb', color: '#fff', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)' },
+    desktopMenu: { display: 'flex', gap: '28px', alignItems: 'center' },
+    link: { background: 'none', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '15px', position: 'relative', padding: '10px 0', transition: 'all 0.2s', fontFamily: 'inherit' },
+    underline: { position: 'absolute', bottom: '-4px', left: '0', right: '0', height: '3px', background: '#2563eb', borderRadius: '10px' },
+    adminLink: { background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' },
+    actionGroup: { display: 'flex', gap: '16px', alignItems: 'center' },
     userGroup: { display: 'flex', gap: '12px', alignItems: 'center' },
-    statsGroup: { display: 'flex', alignItems: 'center', gap: '8px' },
-    pointsBadge: { background: '#eff6ff', color: '#2563eb', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '800', border: '1px solid #dbeafe' },
-    pointsBadgeMobile: { background: '#eff6ff', color: '#2563eb', padding: '4px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: '800' },
-    profileBtn: { display: 'flex', alignItems: 'center', gap: '8px', background: '#fff', border: '1px solid #e2e8f0', padding: '5px 12px', borderRadius: '20px', cursor: 'pointer', fontWeight: '600', fontSize: '13px', color: '#334155', transition: 'all 0.2s' },
-    avatar: { width: '24px', height: '24px', background: '#2563eb', color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px' },
-    logoutIconBtn: { background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', padding: '5px', transition: 'color 0.2s' },
-    mobileToggle: { background: 'none', border: 'none', cursor: 'pointer', color: '#1e293b' },
-    mobileMenu: { position: 'absolute', top: '75px', left: '15px', right: '15px', background: '#fff', borderRadius: '16px', display: 'flex', flexDirection: 'column', padding: '15px', gap: '8px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', border: '1px solid #f1f5f9' },
-    mobileLink: { background: 'none', border: 'none', textAlign: 'left', padding: '12px', fontSize: '15px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '12px', borderRadius: '10px', color: '#475569', cursor: 'pointer' },
-    mobileIconWrapper: { color: '#2563eb', display: 'flex' },
-    mobilePremiumBtn: { background: '#2563eb', color: '#fff', border: 'none', padding: '14px', borderRadius: '12px', fontWeight: 'bold', marginTop: '10px' }
+    walletBadge: { background: '#f0fdf4', color: '#16a34a', padding: '6px 12px', borderRadius: '10px', fontSize: '13px', fontWeight: '800', border: '1px solid #dcfce7', display: 'flex', alignItems: 'center', gap: '6px' },
+    pointsBadge: { background: '#eff6ff', color: '#2563eb', padding: '6px 12px', borderRadius: '10px', fontSize: '13px', fontWeight: '800', border: '1px solid #dbeafe' },
+    profileBtn: { display: 'flex', alignItems: 'center', gap: '10px', background: '#fff', border: '1px solid #e2e8f0', padding: '6px 14px', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '14px', color: '#1e293b', transition: 'all 0.2s shadow' },
+    avatar: { width: '28px', height: '28px', background: '#2563eb', color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' },
+    premiumBtn: { background: '#2563eb', color: '#fff', border: 'none', padding: '12px 28px', borderRadius: '12px', cursor: 'pointer', fontWeight: '800', fontSize: '15px', transition: 'transform 0.2s' },
+    logoutIconBtn: { background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '8px' },
+    mobileToggle: { background: '#f8fafc', border: '1px solid #e2e8f0', padding: '8px', borderRadius: '10px', cursor: 'pointer' },
+    mobileMenu: { position: 'absolute', top: '80px', left: '20px', right: '20px', background: 'rgba(255, 255, 255, 0.98)', backdropFilter: 'blur(20px)', borderRadius: '24px', display: 'flex', flexDirection: 'column', padding: '20px', gap: '10px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)', border: '1px solid #f1f5f9' },
+    mobileLink: { background: 'none', border: 'none', textAlign: 'left', padding: '16px', fontSize: '16px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '14px', borderRadius: '14px', color: '#334155' },
+    mobileIconWrapper: { color: '#2563eb' },
+    mobileDivider: { height: '1px', background: '#f1f5f9', margin: '10px 0' },
+    mobilePremiumBtn: { background: '#2563eb', color: '#fff', border: 'none', padding: '16px', borderRadius: '16px', fontWeight: '800', fontSize: '16px' }
 };
 
 export default Navbar;

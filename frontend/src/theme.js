@@ -1,6 +1,6 @@
 /**
- * TalentBD Design System v2.0
- * Unified theme for high-performance Fintech & Ed-Tech UI.
+ * TalentBD Design System v2.0 (2026 Synchronized Edition)
+ * Optimized for HP-840 Widescreen & Mobile High-DPI Displays.
  */
 
 export const theme = {
@@ -22,16 +22,20 @@ export const theme = {
         bgMain: '#f8fafc',        
         bgCard: '#ffffff',
         bgDark: '#0f172a',
-        border: '#e2e8f0',        // Standard border color
+        border: '#e2e8f0',        
+        
+        // Added: Transactional Colors for Wallet Dashboard
+        cashIn: '#dcfce7',
+        cashOut: '#fee2e2',
         
         // Typography System
-        textMain: '#1e293b',      // Slate 800
-        textMuted: '#64748b',     // Slate 500
+        textMain: '#1e293b',      
+        textMuted: '#64748b',     
         textLight: '#f8fafc',
         textOnPrimary: '#ffffff',
     },
 
-    // Spacing (T-shirt sizes)
+    // Spacing (T-shirt sizes + Responsive Scaling)
     spacing: {
         xs: '4px',
         sm: '8px',
@@ -39,10 +43,13 @@ export const theme = {
         lg: '24px',
         xl: '32px',
         xxl: '48px',
-        gap: 'clamp(16px, 3vw, 32px)', // Responsive gap
+        // Synced with App.css layout
+        gap: 'clamp(16px, 3vw, 32px)', 
+        containerPadding: 'clamp(1rem, 5vw, 2.5rem)',
+        navHeight: '70px',
     },
 
-    // UI Elevation
+    // UI Elevation (Synced with Global CSS)
     borderRadius: {
         sm: '6px',
         md: '12px',
@@ -55,8 +62,10 @@ export const theme = {
         sm: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
         md: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
         lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-        premium: '0 25px 50px -12px rgba(0, 0, 0, 0.08)', // For dashboard cards
-        glow: '0 0 20px rgba(37, 99, 235, 0.15)',        // For "Verifying" states
+        premium: '0 25px 50px -12px rgba(0, 0, 0, 0.08)', 
+        glow: '0 0 20px rgba(37, 99, 235, 0.15)',        
+        // Added: Subtle card border-glow for Verification states
+        successGlow: '0 0 15px rgba(16, 185, 129, 0.2)',
     },
 
     // Responsive Breakpoints
@@ -65,9 +74,18 @@ export const theme = {
         tablet: '768px',
         laptop: '1024px',
         desktop: '1200px',
+        widescreen: '1440px', // Added for HP-840 full-screen optimization
     },
 
-    // Layer Management (Prevents z-index wars)
+    // Added: Responsive Typography Engine
+    typography: {
+        h1: 'clamp(2.25rem, 6vw, 3.5rem)',
+        h2: 'clamp(1.5rem, 4vw, 2.25rem)',
+        body: 'clamp(0.9rem, 1vw, 1.1rem)',
+        label: '11px',
+    },
+
+    // Layer Management
     zIndex: {
         base: 0,
         card: 10,
@@ -77,7 +95,7 @@ export const theme = {
         tooltip: 110,
     },
 
-    // Glassmorphism Utilities (2026 Trend)
+    // Glassmorphism Utilities (Synced with Navbar & Sidebar)
     glass: {
         main: {
             background: 'rgba(255, 255, 255, 0.7)',
@@ -93,10 +111,20 @@ export const theme = {
         }
     },
 
+    // Motion & Transitions
     transitions: {
         main: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         slow: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
-        spring: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+        spring: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)', // Perfect for Job Cards
+    },
+
+    // Added: Adaptive Grid Utility
+    layout: {
+        grid: (columns = 3) => ({
+            display: 'grid',
+            gap: 'var(--gap)',
+            gridTemplateColumns: `repeat(auto-fit, minmax(300px, 1fr))`,
+        })
     }
 };
 
