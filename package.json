@@ -31,7 +31,6 @@
   },
   "description": "TalentBD 2026: The ultimate Ed-Tech & Fintech Hybrid Platform.",
   "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=9.0.0"
-  }
+  "node": "22.x"
+}
 }
