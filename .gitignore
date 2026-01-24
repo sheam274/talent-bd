@@ -1,5 +1,22 @@
+# Dependencies
 node_modules/
+frontend/node_modules/
+backend/node_modules/
+
+# Production Builds
+frontend/build/
+frontend/dist/
+
+# Environment Variables & Sensitive Data
 .env
-build/
+backend/.env
+frontend/.env
+
+# Debugging logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS Files
 .DS_Store
-package-lock.json
+Thumbs.db

@@ -3,18 +3,34 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-  "install-all": "npm install --prefix frontend && npm install --prefix backend",
-  "dev": "concurrently \"npm run dev --prefix backend\" \"npm start --prefix frontend\"",
-  "build": "npm install --prefix frontend && npm run build --prefix frontend"
-},
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
   "devDependencies": {
     "concurrently": "^8.2.2",
-    
     "cross-env": "^7.0.3",
     "wait-on": "^7.2.0"
   },
   "description": "TalentBD 2026: The ultimate Ed-Tech & Fintech Hybrid Platform.",
   "engines": {
-  "node": "22.x"
-}
+    "node": "22.x"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "dependencies": {
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.0.0"
+  }
 }
