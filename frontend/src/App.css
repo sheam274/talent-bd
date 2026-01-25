@@ -1,13 +1,19 @@
 /* --- Global Reset & Foundation --- */
 :root {
   --primary: #2563eb;
+  --primary-dark: #1e40af;
   --success: #10b981;
-  --bg-main: #f1f5f9;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --bg-main: #f8fafc; /* Slightly lighter for better card contrast */
   --text-dark: #0f172a;
   --text-slate: #64748b;
   --radius-lg: 24px;
   --radius-xl: 32px;
+  --radius-pill: 50px;
   --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --shadow-sm: 0 10px 15px -3px rgba(0,0,0,0.02);
+  --shadow-lg: 0 25px 50px -12px rgba(0,0,0,0.08);
 }
 
 * {
@@ -20,23 +26,41 @@ body {
   margin: 0;
   padding: 0;
   background-color: var(--bg-main);
-  /* Prevents horizontal scroll on mobile */
   overflow-x: hidden; 
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 .App {
-  text-align: center;
-  font-family: 'Inter', -apple-system, system-ui, sans-serif;
-  color: var(--text-dark);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-/* --- Navigation & Header Structure --- */
+/* --- ADMIN & SYSTEM CONTROLS (NEW) --- */
+.admin-hub-overlay {
+  background: #ffffff;
+  border: 2px dashed #cbd5e1;
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 30px;
+  transition: var(--transition);
+}
+
+.admin-badge {
+  background: var(--text-dark);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* --- NAVIGATION & HEADER --- */
 .App-header {
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  min-height: 40vh;
+  min-height: 35vh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -47,188 +71,154 @@ body {
   overflow: hidden;
 }
 
-/* Background "Auras" - Added a second one for symmetrical depth on HP-840 */
+/* Background Depth Symmetery for HP-840 Viewport */
+.App-header::before, .App-header::after {
+  content: '';
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(80px);
+}
 .App-header::before {
-  content: '';
-  position: absolute;
-  width: 400px;
-  height: 400px;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.15) 0%, transparent 70%);
-  top: -150px;
+  background: rgba(37, 99, 235, 0.1);
+  top: -200px;
   right: -100px;
-  pointer-events: none;
 }
-
 .App-header::after {
-  content: '';
-  position: absolute;
-  width: 350px;
-  height: 350px;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, transparent 70%);
-  bottom: -100px;
-  left: -50px;
-  pointer-events: none;
+  background: rgba(16, 185, 129, 0.08);
+  bottom: -200px;
+  left: -100px;
 }
 
-/* --- Logo & Animation --- */
+/* --- TYPOGRAPHY & LOGO --- */
 .App-logo {
-  height: 12rem;
-  pointer-events: none;
+  height: clamp(8rem, 15vw, 12rem);
   filter: drop-shadow(0 0 30px rgba(37, 99, 235, 0.3));
-  margin-bottom: 20px;
-  z-index: 1;
+  margin-bottom: 25px;
+  z-index: 2;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-    will-change: transform;
-  }
-}
-
-/* --- Typography System --- */
-h1, h2, h3, h4 {
-  letter-spacing: -0.025em;
-  line-height: 1.2;
-}
-
-.App-header h1 {
-  font-size: clamp(2.2rem, 6vw, 4rem); /* Responsive typography */
+h1.hero-title {
+  font-size: clamp(2.5rem, 8vw, 4.5rem);
   font-weight: 950;
-  margin-bottom: 15px;
-  background: linear-gradient(to right, #ffffff 30%, #94a3b8);
+  letter-spacing: -3px;
+  margin: 0;
+  background: linear-gradient(to bottom, #fff 40%, #94a3b8);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  padding: 0 10px;
 }
 
-.App-header p {
-  font-size: clamp(1rem, 2vw, 1.2rem);
-  color: #94a3b8;
-  max-width: 700px;
-  font-weight: 500;
-}
-
-/* --- Links & Buttons --- */
-.App-link {
-  color: var(--primary);
-  text-decoration: none;
-  font-weight: 700;
-  position: relative;
-  transition: var(--transition);
-}
-
-.App-link:hover {
-  color: #60a5fa;
-  transform: translateY(-1px);
-}
-
-/* SYNCED: Custom Button Base for Dashboard Actions */
-.btn-primary {
-  background: var(--primary);
-  color: white;
-  border-radius: 14px;
-  padding: 12px 24px;
-  font-weight: 800;
-  border: none;
-  cursor: pointer;
-  transition: var(--transition);
-  box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.2);
-}
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  filter: brightness(1.1);
-}
-
-/* --- Glassmorphism Components --- */
+/* --- COMPONENT CLASSES --- */
 .Glass-Card {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 20px 25px -5px rgba(0,0,0,0.05);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
 }
 
-/* --- Layout Utilities & Responsive Grid --- */
-.container {
+.Glass-Card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Dynamic Reward Badges */
+.reward-tag {
+  background: #f0fdf4;
+  color: var(--success);
+  font-weight: 800;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid #bbf7d0;
+  font-size: 13px;
+}
+
+/* --- RESPONSIVE GRID SYSTEM --- */
+.main-container {
   width: 100%;
-  max-width: 1300px; /* Expanded for HP-840 width */
+  max-width: 1280px; /* Perfect for 14" HP-840 Displays */
   margin: 0 auto;
   padding: 0 24px;
 }
 
-/* Dashboard Responsive Wrapper */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  /* Balanced columns for large screens, single for small */
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
   gap: 30px;
-  width: 100%;
+  margin-top: -40px; /* Lift cards into header space */
+  position: relative;
+  z-index: 10;
 }
 
-.flex-center {
-  display: flex;
+/* --- BUTTON SYSTEM --- */
+.btn-base {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 10px;
+  padding: 16px 28px;
+  border-radius: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: var(--transition);
+  border: none;
+  font-size: 15px;
 }
 
-/* --- Keyframes & Transitions --- */
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
+}
+
+.btn-primary:hover {
+  background: var(--primary-dark);
+  transform: scale(1.02);
+}
+
+.btn-admin-add {
+  background: var(--text-dark);
+  color: white;
+  padding: 10px 20px;
+  font-size: 13px;
+}
+
+/* --- ANIMATIONS --- */
 @keyframes App-logo-spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
-/* Smooth Scrolling */
-html {
-  scroll-behavior: smooth;
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo { animation: App-logo-spin infinite 30s linear; }
 }
 
-/* Custom Scrollbar - Slate 200/400 theme */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f5f9;
-}
-
+/* --- SCROLLBAR --- */
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-track { background: var(--bg-main); }
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
-  border-radius: 20px;
-  border: 2px solid #f1f5f9;
+  border-radius: 10px;
+  border: 3px solid var(--bg-main);
 }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-/* Mobile & Tablet Responsiveness */
+/* --- RESPONSIVE OVERRIDES --- */
 @media (max-width: 1024px) {
-  .App-logo { height: 10rem; }
+  .dashboard-grid { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 }
 
 @media (max-width: 768px) {
-  .App-header {
-    padding: 50px 15px;
-    min-height: 35vh;
+  .App-header { min-height: 30vh; padding: 40px 20px; }
+  .dashboard-grid { 
+    grid-template-columns: 1fr; 
+    margin-top: 20px; 
+    gap: 20px;
   }
-  
-  .container {
-    padding: 0 15px;
-  }
-  
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 480px) {
-  .App-header h1 {
-    font-size: 1.8rem;
-  }
-  
-  .Glass-Card {
-    border-radius: 18px;
-  }
+  .main-container { padding: 0 16px; }
+  .hero-title { letter-spacing: -1.5px; }
 }

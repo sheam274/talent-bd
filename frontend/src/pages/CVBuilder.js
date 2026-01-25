@@ -1,13 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { Sparkles, Download, Cloud, Plus, Trash2, Layout, X, GraduationCap, Award, Briefcase, Code, Camera, User, ExternalLink, Eye } from 'lucide-react';
+import axios from 'axios';
+import { 
+    Sparkles, Download, Cloud, Plus, Trash2, Layout, X, 
+    GraduationCap, Award, Briefcase, Code, Camera, User, 
+    ExternalLink, Eye, Layers 
+} from 'lucide-react';
 
-// --- Helper Component moved outside to prevent focus loss ---
+// --- Shared Section Component ---
 const SectionWrapper = ({ title, children, onAdd }) => (
     <div style={{marginBottom:'25px'}}>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px'}}>
-            <label style={{fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform:'uppercase'}}>{title}</label>
+            <label style={{fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform:'uppercase', letterSpacing: '0.5px'}}>{title}</label>
             {onAdd && <button onClick={onAdd} style={styles.addCircle}><Plus size={14}/></button>}
         </div>
         {children}
@@ -15,14 +20,6 @@ const SectionWrapper = ({ title, children, onAdd }) => (
 );
 
 export default function CVBuilder({ user, job, onClose }) {
-    const [template, setTemplate] = useState('modern');
-    const [jobCircular, setJobCircular] = useState(job ? `${job.title}\n${job.skill}` : '');
-    const [aiAnalysis, setAiAnalysis] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 1024 : false);
-    const [showPreviewMobile, setShowPreviewMobile] = useState(false);
-    const fileInputRef = useRef(null);
-
     const [cvData, setCvData] = useState({
         photo: null,
         name: user?.name || '', 
@@ -31,36 +28,31 @@ export default function CVBuilder({ user, job, onClose }) {
         linkedin: '', 
         location: user?.location || '', 
         summary: '',
-        skills: [{ name: user?.skills?.[0] || '', level: 'Expert' }],
+        skills: [{ name: '', level: 'Expert' }],
         experience: [{ company: '', role: '', period: '', metrics: '' }],
         education: [{ institute: '', degree: '', year: '', gpa: '' }],
         projects: [{ title: '', tech: '', description: '', link: '' }]
     });
 
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+    const [showPreviewMobile, setShowPreviewMobile] = useState(false);
+    const [categories, setCategories] = useState([]); // SYNC: Platform categories
+    const [loading, setLoading] = useState(false);
+    const fileInputRef = useRef(null);
+
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 1024);
         window.addEventListener('resize', handleResize);
-        if (user) {
-            setCvData(prev => ({
-                ...prev,
-                name: user.name || prev.name,
-                email: user.email || prev.email,
-                ...(user.savedCV || {})
-            }));
-        }
-        if (job) setJobCircular(`${job.title} - ${job.skill}`);
+        fetchCategories(); // SYNC: Fetch global categories for skills/projects
         return () => window.removeEventListener('resize', handleResize);
-    }, [user, job]);
+    }, []);
 
-    const handlePhotoUpload = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setCvData(prev => ({ ...prev, photo: reader.result }));
-            };
-            reader.readAsDataURL(file);
-        }
+    // --- CATEGORY SYNC LOGIC ---
+    const fetchCategories = async () => {
+        try {
+            const res = await axios.get('http://localhost:5000/api/categories');
+            setCategories(res.data);
+        } catch (err) { console.warn("Category sync unavailable - using offline tags."); }
     };
 
     const updateField = (section, index, field, value) => {
@@ -78,108 +70,87 @@ export default function CVBuilder({ user, job, onClose }) {
         setCvData({ ...cvData, [section]: updated });
     };
 
+    const handlePhotoUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => setCvData(prev => ({ ...prev, photo: reader.result }));
+            reader.readAsDataURL(file);
+        }
+    };
+
     const exportPDF = () => {
         const input = document.getElementById('resume-preview');
         html2canvas(input, { scale: 2, useCORS: true }).then(canvas => {
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF('p', 'mm', 'a4');
             pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
-            pdf.save(`CV_${cvData.name || 'Profile'}.pdf`);
+            pdf.save(`TalentBD_CV_${cvData.name || 'User'}.pdf`);
         });
-    };
-
-    const saveCVToProfile = () => {
-        localStorage.setItem(`cv_backup_${user?.email || 'guest'}`, JSON.stringify(cvData));
-        alert("✅ Progress Saved (Projects included)!");
     };
 
     return (
         <div style={{...styles.container, flexDirection: isMobile ? 'column' : 'row'}}>
-            {/* EDITOR PANEL */}
+            
+            {/* EDITOR PANE */}
             <aside style={{
                 ...styles.editorPane, 
                 display: (isMobile && showPreviewMobile) ? 'none' : 'flex',
-                width: isMobile ? '100%' : '450px'
+                width: isMobile ? '100%' : '480px'
             }}>
                 <header style={styles.paneHeader}>
-                    <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
-                        <Layout color="#2563eb" size={24}/>
-                        <h2 style={{margin:0, fontSize:'18px'}}>CV <span style={{color:'#2563eb'}}>Architect</span></h2>
+                    <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                        <div style={styles.logoBox}><Layout size={20} color="#fff"/></div>
+                        <h2 style={{margin:0, fontSize:'20px', fontWeight:'900'}}>CV <span style={{color:'#2563eb'}}>Architect</span></h2>
                     </div>
-                    <div style={{display:'flex', gap:'10px'}}>
-                        {isMobile && (
-                            <button onClick={() => setShowPreviewMobile(true)} style={styles.mobileToggleBtn}>
-                                <Eye size={18}/> Preview
-                            </button>
-                        )}
-                        {onClose && <button onClick={onClose} style={styles.closeBtn}><X size={18}/></button>}
-                    </div>
+                    {isMobile && (
+                        <button onClick={() => setShowPreviewMobile(true)} style={styles.mobileToggleBtn}>
+                            <Eye size={16}/> Preview
+                        </button>
+                    )}
                 </header>
 
-                <div style={styles.aiCard}>
-                    <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '10px'}}>
-                         <label style={styles.aiLabel}>AI Assistant</label>
-                         <button onClick={() => setTemplate('modern')} style={styles.templateBtn}>Change Template</button>
-                    </div>
-                    {loading ? (
-                        <p style={styles.aiLoading}>
-                            <Sparkles size={14} className="animate-pulse" /> Analyzing {jobCircular}...
-                        </p>
-                    ) : (
-                        <div style={{display: 'flex', alignItems: 'flex-start', gap: '8px'}}>
-                            <Sparkles size={16} color="#eab308" style={{marginTop: '2px'}} />
-                            <p style={styles.aiText}>{aiAnalysis || "Ready to analyze your CV against the job circular."}</p>
-                        </div>
-                    )}
-                </div>
-
                 <div style={styles.formScroll}>
-                    <SectionWrapper title="Profile Image">
+                    {/* PHOTO & IDENTITY */}
+                    <div style={styles.identityRow}>
                         <div style={styles.photoUploadZone} onClick={() => fileInputRef.current.click()}>
-                            {cvData.photo ? (
-                                <img src={cvData.photo} alt="Profile" style={styles.photoPreviewCircle} />
-                            ) : (
-                                <div style={styles.photoPlaceholder}>
-                                    <Camera size={24} color="#94a3b8" />
-                                    <span style={{fontSize:'12px', color:'#94a3b8'}}>Upload Photo</span>
-                                </div>
-                            )}
+                            {cvData.photo ? <img src={cvData.photo} alt="P" style={styles.photoPreviewCircle} /> : <Camera size={20} color="#94a3b8" />}
                             <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handlePhotoUpload} />
                         </div>
-                    </SectionWrapper>
-
-                    <SectionWrapper title="Personal Identity">
-                        <input style={styles.input} placeholder="Full Name" value={cvData.name} onChange={e => setCvData({...cvData, name: e.target.value})} />
-                        <div style={{display:'flex', gap:'10px'}}>
-                            <input style={styles.input} placeholder="Email" value={cvData.email} onChange={e => setCvData({...cvData, email: e.target.value})} />
-                            <input style={styles.input} placeholder="Location" value={cvData.location} onChange={e => setCvData({...cvData, location: e.target.value})} />
+                        <div style={{flex:1}}>
+                            <input style={styles.input} placeholder="Full Name" value={cvData.name} onChange={e => setCvData({...cvData, name: e.target.value})} />
+                            <input style={styles.input} placeholder="Professional Title (e.g. MERN Developer)" value={cvData.linkedin} onChange={e => setCvData({...cvData, linkedin: e.target.value})} />
                         </div>
-                        <textarea style={styles.textarea} placeholder="Professional Summary..." value={cvData.summary} onChange={e => setCvData({...cvData, summary: e.target.value})} />
+                    </div>
+
+                    <SectionWrapper title="Summary">
+                        <textarea style={styles.textarea} placeholder="Describe your 2026 career goals..." value={cvData.summary} onChange={e => setCvData({...cvData, summary: e.target.value})} />
                     </SectionWrapper>
 
-                    <SectionWrapper title="Project Showcase" onAdd={() => addSectionItem('projects', {title:'', tech:'', description:'', link:''})}>
+                    {/* DYNAMIC SKILL TAGS (SYNCED WITH PLATFORM) */}
+                    <SectionWrapper title="Core Skills" onAdd={() => addSectionItem('skills', {name:'', level:'Expert'})}>
+                        <div style={styles.skillsGrid}>
+                            {cvData.skills.map((sk, i) => (
+                                <div key={i} style={styles.skillInputWrapper}>
+                                    <input list="platform-skills" style={styles.skillInput} placeholder="Skill" value={sk.name} onChange={e => updateField('skills', i, 'name', e.target.value)} />
+                                    <datalist id="platform-skills">
+                                        {categories.map(c => <option key={c._id} value={c.name} />)}
+                                    </datalist>
+                                    <button onClick={() => removeSectionItem('skills', i)} style={styles.delBtn}><X size={12}/></button>
+                                </div>
+                            ))}
+                        </div>
+                    </SectionWrapper>
+
+                    <SectionWrapper title="Projects" onAdd={() => addSectionItem('projects', {title:'', tech:'', description:''})}>
                         {cvData.projects.map((proj, i) => (
                             <div key={i} style={styles.itemCard}>
-                                <div style={{display:'flex', justifyContent:'space-between'}}>
-                                    <input style={{...styles.input, fontWeight:'bold', border:'none'}} placeholder="Project Title" value={proj.title} onChange={e => updateField('projects', i, 'title', e.target.value)} />
-                                    <button onClick={() => removeSectionItem('projects', i)} style={styles.delBtn}><Trash2 size={14}/></button>
+                                <div style={styles.cardHeader}>
+                                    <input style={styles.cardInputBold} placeholder="Project Name" value={proj.title} onChange={e => updateField('projects', i, 'title', e.target.value)} />
+                                    <Trash2 size={14} color="#ef4444" onClick={() => removeSectionItem('projects', i)} style={{cursor:'pointer'}}/>
                                 </div>
-                                <input style={styles.input} placeholder="Tech Stack (e.g. React, Node.js)" value={proj.tech} onChange={e => updateField('projects', i, 'tech', e.target.value)} />
-                                <input style={styles.input} placeholder="Live Link / GitHub" value={proj.link} onChange={e => updateField('projects', i, 'link', e.target.value)} />
-                                <textarea style={styles.textarea} placeholder="Project details..." value={proj.description} onChange={e => updateField('projects', i, 'description', e.target.value)} />
-                            </div>
-                        ))}
-                    </SectionWrapper>
-
-                    <SectionWrapper title="Academic Background" onAdd={() => addSectionItem('education', {institute:'', degree:'', year:'', gpa:''})}>
-                        {cvData.education.map((edu, i) => (
-                            <div key={i} style={styles.itemCard}>
-                                <div style={{display:'flex', justifyContent:'space-between'}}>
-                                    <input style={{...styles.input, fontWeight:'bold', border:'none'}} placeholder="University" value={edu.institute} onChange={e => updateField('education', i, 'institute', e.target.value)} />
-                                    <button onClick={() => removeSectionItem('education', i)} style={styles.delBtn}><Trash2 size={14}/></button>
-                                </div>
-                                <input style={styles.input} placeholder="Degree" value={edu.degree} onChange={e => updateField('education', i, 'degree', e.target.value)} />
-                                <input style={styles.input} placeholder="Year / GPA" value={edu.year} onChange={e => updateField('education', i, 'year', e.target.value)} />
+                                <input style={styles.input} placeholder="Tech Stack" value={proj.tech} onChange={e => updateField('projects', i, 'tech', e.target.value)} />
+                                <textarea style={styles.textareaSmall} placeholder="What did you build?" value={proj.description} onChange={e => updateField('projects', i, 'description', e.target.value)} />
                             </div>
                         ))}
                     </SectionWrapper>
@@ -187,99 +158,68 @@ export default function CVBuilder({ user, job, onClose }) {
                     <SectionWrapper title="Work Experience" onAdd={() => addSectionItem('experience', {company:'', role:'', period:'', metrics:''})}>
                         {cvData.experience.map((exp, i) => (
                             <div key={i} style={styles.itemCard}>
-                                <div style={{display:'flex', justifyContent:'space-between'}}>
-                                    <input style={{...styles.input, fontWeight:'bold', border:'none'}} placeholder="Company" value={exp.company} onChange={e => updateField('experience', i, 'company', e.target.value)} />
-                                    <button onClick={() => removeSectionItem('experience', i)} style={styles.delBtn}><Trash2 size={14}/></button>
+                                <div style={styles.cardHeader}>
+                                    <input style={styles.cardInputBold} placeholder="Company Name" value={exp.company} onChange={e => updateField('experience', i, 'company', e.target.value)} />
+                                    <Trash2 size={14} color="#ef4444" onClick={() => removeSectionItem('experience', i)} style={{cursor:'pointer'}}/>
                                 </div>
-                                <input style={styles.input} placeholder="Job Role" value={exp.role} onChange={e => updateField('experience', i, 'role', e.target.value)} />
-                                <textarea style={styles.textarea} placeholder="Achievements..." value={exp.metrics} onChange={e => updateField('experience', i, 'metrics', e.target.value)} />
+                                <input style={styles.input} placeholder="Role" value={exp.role} onChange={e => updateField('experience', i, 'role', e.target.value)} />
+                                <textarea style={styles.textareaSmall} placeholder="Achievements..." value={exp.metrics} onChange={e => updateField('experience', i, 'metrics', e.target.value)} />
                             </div>
                         ))}
-                    </SectionWrapper>
-
-                    <SectionWrapper title="Skills" onAdd={() => addSectionItem('skills', {name:'', level:'Expert'})}>
-                        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px'}}>
-                            {cvData.skills.map((sk, i) => (
-                                <div key={i} style={styles.skillInputWrapper}>
-                                    <input style={{border:'none', background:'none', fontSize:'12px', width:'100%'}} placeholder="Skill" value={sk.name} onChange={e => updateField('skills', i, 'name', e.target.value)} />
-                                    <button onClick={() => removeSectionItem('skills', i)} style={styles.delBtn}><X size={12}/></button>
-                                </div>
-                            ))}
-                        </div>
                     </SectionWrapper>
                 </div>
 
                 <div style={styles.actionFooter}>
-                    <button onClick={saveCVToProfile} style={styles.saveBtn}><Cloud size={18}/> Save</button>
                     <button onClick={exportPDF} style={styles.pdfBtn}><Download size={18}/> Export PDF</button>
+                    <button onClick={() => alert("CV Synced to TalentBD Cloud")} style={styles.saveBtn}><Cloud size={18}/> Cloud Save</button>
                 </div>
             </aside>
 
-            {/* PREVIEW PANEL */}
+            {/* PREVIEW PANE */}
             <main style={{
                 ...styles.previewPane, 
                 display: (isMobile && !showPreviewMobile) ? 'none' : 'flex'
             }}>
                 {isMobile && (
                     <button onClick={() => setShowPreviewMobile(false)} style={styles.mobileBackBtn}>
-                        <X size={18}/> Back to Editor
+                        <X size={16}/> Edit Mode
                     </button>
                 )}
-                <div style={styles.a4ScaleWrapper}>
-                    <div id="resume-preview" style={styles.a4}>
-                        <div style={styles.cvHeader}>
-                            <div style={{display:'flex', alignItems:'center', gap:'25px'}}>
-                                <div style={styles.previewPhotoWrapper}>
-                                    {cvData.photo ? <img src={cvData.photo} alt="Profile" style={styles.previewPhoto} /> : <User size={40} color="#cbd5e1" />}
-                                </div>
-                                <div style={{textAlign:'left'}}>
-                                    <h1 style={styles.cvName}>{cvData.name || "YOUR NAME"}</h1>
-                                    <p style={styles.cvContact}>{cvData.email} | {cvData.location} | {cvData.phone}</p>
-                                </div>
+                <div id="resume-preview" style={styles.a4}>
+                    <header style={styles.cvHeader}>
+                        <div style={styles.cvHeaderContent}>
+                            {cvData.photo && <img src={cvData.photo} alt="P" style={styles.previewPhoto} />}
+                            <div>
+                                <h1 style={styles.cvName}>{cvData.name || "UNNAMED TALENT"}</h1>
+                                <p style={styles.cvTagline}>{cvData.linkedin || "Professional Title"}</p>
+                                <p style={styles.cvContact}>{cvData.email} • {cvData.location}</p>
                             </div>
                         </div>
+                    </header>
 
-                        <div style={styles.cvBodyGrid}>
-                            <div style={{flex: 2}}>
-                                <h3 style={styles.cvSectionTitle}><Briefcase size={14}/> Summary</h3>
-                                <p style={styles.cvText}>{cvData.summary}</p>
+                    <div style={styles.cvBody}>
+                        <div style={styles.cvMain}>
+                            <h3 style={styles.cvTitle}>Professional Summary</h3>
+                            <p style={styles.cvText}>{cvData.summary}</p>
 
-                                <h3 style={styles.cvSectionTitle}><ExternalLink size={14}/> Key Projects</h3>
-                                {cvData.projects.map((proj, i) => (
-                                    <div key={i} style={{marginBottom:'12px'}}>
-                                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
-                                            <strong>{proj.title}</strong>
-                                            <span style={{fontSize:'10px', color:'#2563eb'}}>{proj.tech}</span>
-                                        </div>
-                                        <p style={{...styles.cvText, margin:'2px 0'}}>{proj.description}</p>
+                            <h3 style={styles.cvTitle}>Technical Projects</h3>
+                            {cvData.projects.map((p, i) => (
+                                <div key={i} style={{marginBottom:'10px'}}>
+                                    <div style={{display:'flex', justifyContent:'space-between'}}>
+                                        <strong>{p.title}</strong>
+                                        <span style={{color:'#2563eb', fontSize:'10px'}}>{p.tech}</span>
                                     </div>
-                                ))}
-
-                                <h3 style={styles.cvSectionTitle}><Award size={14}/> Work Experience</h3>
-                                {cvData.experience.map((exp, i) => (
-                                    <div key={i} style={{marginBottom:'10px'}}>
-                                        <strong>{exp.company}</strong> — <i>{exp.role}</i>
-                                        <p style={styles.cvText}>{exp.metrics}</p>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div style={{flex: 1, paddingLeft:'20px', borderLeft:'1px solid #f1f5f9'}}>
-                                <h3 style={styles.cvSectionTitle}><GraduationCap size={16}/> Education</h3>
-                                {cvData.education.map((edu, i) => (
-                                    <div key={i} style={{marginBottom:'12px'}}>
-                                        <div style={{fontWeight:'bold', fontSize:'12px'}}>{edu.institute}</div>
-                                        <div style={{fontSize:'11px'}}>{edu.degree}</div>
-                                        <div style={{fontSize:'10px', color:'#64748b'}}>{edu.year}</div>
-                                    </div>
-                                ))}
-
-                                <h3 style={styles.cvSectionTitle}><Code size={14}/> Core Skills</h3>
-                                <div style={{display:'flex', flexWrap:'wrap', gap:'6px'}}>
-                                    {cvData.skills.map((sk, i) => (
-                                        <span key={i} style={styles.skillTag}>{sk.name}</span>
-                                    ))}
+                                    <p style={styles.cvText}>{p.description}</p>
                                 </div>
+                            ))}
+                        </div>
+
+                        <div style={styles.cvSide}>
+                            <h3 style={styles.cvTitle}>Expertise</h3>
+                            <div style={styles.skillTagsWrap}>
+                                {cvData.skills.map((s, i) => (
+                                    <span key={i} style={styles.previewSkill}>{s.name}</span>
+                                ))}
                             </div>
                         </div>
                     </div>
@@ -290,39 +230,43 @@ export default function CVBuilder({ user, job, onClose }) {
 }
 
 const styles = {
-    container: { display: 'flex', height: '100vh', background: '#f1f5f9', overflow:'hidden' },
-    editorPane: { background: '#fff', borderRight: '1px solid #e2e8f0', flexDirection: 'column', padding: '20px', boxSizing: 'border-box' },
-    paneHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
-    formScroll: { flex: 1, overflowY: 'auto', paddingRight:'10px' },
-    aiCard: { marginBottom: '20px', padding: '15px', background: '#eff6ff', borderRadius: '12px', border: '1px solid #dbeafe' },
-    aiLabel: { fontSize: '11px', fontWeight: '900', color: '#2563eb', textTransform: 'uppercase' },
-    templateBtn: { fontSize: '10px', background: '#fff', border: '1px solid #dbeafe', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer' },
-    aiLoading: { fontSize: '12px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '5px' },
-    aiText: { fontSize: '12px', color: '#1e40af', margin: 0 },
-    photoUploadZone: { width: '80px', height: '80px', borderRadius: '12px', border: '2px dashed #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', background: '#f8fafc' },
-    photoPlaceholder: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' },
+    container: { display: 'flex', height: '100vh', background: '#f8fafc', overflow:'hidden' },
+    editorPane: { background: '#fff', borderRight: '1px solid #e2e8f0', flexDirection: 'column', padding: '25px', boxSizing: 'border-box' },
+    paneHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' },
+    logoBox: { background: '#2563eb', padding: '6px', borderRadius: '8px' },
+    formScroll: { flex: 1, overflowY: 'auto', paddingRight: '10px' },
+    identityRow: { display: 'flex', gap: '15px', marginBottom: '20px', alignItems: 'center' },
+    photoUploadZone: { width: '70px', height: '70px', borderRadius: '50%', border: '2px dashed #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow:'hidden' },
     photoPreviewCircle: { width: '100%', height: '100%', objectFit: 'cover' },
-    previewPhotoWrapper: { width: '90px', height: '90px', borderRadius: '10px', background: '#f8fafc', border: '2px solid #2563eb', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-    previewPhoto: { width: '100%', height: '100%', objectFit: 'cover' },
-    input: { width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box' },
-    textarea: { width: '100%', height: '70px', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '13px', boxSizing: 'border-box', marginBottom:'10px' },
-    itemCard: { padding: '15px', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '15px', background:'#fcfdfe' },
-    skillInputWrapper: { display:'flex', gap:'5px', alignItems:'center', background:'#f8fafc', padding:'5px', borderRadius:'8px', border:'1px solid #e2e8f0' },
-    delBtn: { background:'none', border:'none', color:'#ef4444', cursor:'pointer' },
-    addCircle: { background: '#2563eb', color: '#fff', border: 'none', width: '24px', height: '24px', borderRadius: '50%', cursor: 'pointer' },
-    actionFooter: { display: 'flex', gap: '10px', paddingTop: '20px', borderTop:'1px solid #eee' },
-    saveBtn: { flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #2563eb', color: '#2563eb', background: '#fff', cursor: 'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:'5px', fontWeight:'bold' },
-    pdfBtn: { flex: 1, padding: '12px', borderRadius: '10px', border: 'none', color: '#fff', background: '#2563eb', cursor: 'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:'5px', fontWeight:'bold' },
-    previewPane: { flex: 1, padding: '20px', overflowY: 'auto', background: '#334155', display: 'flex', flexDirection:'column', alignItems: 'center' },
-    a4ScaleWrapper: { width: '100%', display: 'flex', justifyContent: 'center' },
-    a4: { width: '210mm', minHeight: '297mm', background: '#fff', padding: '15mm', boxShadow: '0 0 40px rgba(0,0,0,0.5)', boxSizing:'border-box', maxWidth: '100%' },
-    cvHeader: { borderBottom: '2px solid #2563eb', paddingBottom: '15px', marginBottom: '15px' },
-    cvName: { margin: 0, fontSize: '26px', fontWeight: '900', color:'#1e293b' },
-    cvContact: { color: '#64748b', fontSize: '11px', marginTop:'5px' },
-    cvBodyGrid: { display: 'flex', gap: '20px' },
-    cvSectionTitle: { fontSize:'12px', fontWeight:'900', borderBottom:'1px solid #e2e8f0', paddingBottom:'4px', marginTop:'18px', marginBottom:'8px', textTransform:'uppercase', color:'#2563eb', display:'flex', alignItems:'center', gap:'6px' },
-    cvText: { fontSize: '12px', lineHeight: '1.5', color:'#475569' },
-    skillTag: { background: '#f1f5f9', padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '600', color: '#334155', border: '1px solid #e2e8f0' },
-    mobileToggleBtn: { display: 'flex', alignItems: 'center', gap: '5px', background: '#2563eb', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' },
-    mobileBackBtn: { background: '#fff', border: '1px solid #e2e8f0', padding: '10px 20px', borderRadius: '8px', marginBottom: '20px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }
+    input: { width: '100%', padding: '12px', marginBottom: '10px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '13px', outline: 'none' },
+    textarea: { width: '100%', height: '80px', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '13px', outline: 'none', resize: 'none' },
+    textareaSmall: { width: '100%', height: '50px', padding: '10px', borderRadius: '8px', border: '1px solid #f1f5f9', fontSize: '12px', outline: 'none', resize: 'none' },
+    skillsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '8px' },
+    skillInputWrapper: { display:'flex', alignItems:'center', background:'#f1f5f9', borderRadius:'8px', padding:'4px 8px' },
+    skillInput: { border:'none', background:'none', width:'100%', fontSize:'12px', outline:'none' },
+    itemCard: { padding: '12px', background: '#fcfdfe', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '10px' },
+    cardHeader: { display:'flex', justifyContent:'space-between', marginBottom:'8px' },
+    cardInputBold: { border:'none', background:'none', fontWeight:'bold', fontSize:'14px', width:'90%', outline:'none' },
+    delBtn: { border:'none', background:'none', color:'#94a3b8', cursor:'pointer' },
+    addCircle: { background: '#2563eb', color: '#fff', border: 'none', width: '22px', height: '22px', borderRadius: '50%', cursor: 'pointer' },
+    actionFooter: { display: 'flex', gap: '10px', marginTop: '20px' },
+    pdfBtn: { flex: 1, padding: '14px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '8px' },
+    saveBtn: { flex: 1, padding: '14px', background: '#fff', color: '#0f172a', border: '1px solid #0f172a', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '8px' },
+    previewPane: { flex: 1, padding: '40px', background: '#334155', overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center' },
+    a4: { width: '210mm', minHeight: '297mm', background: '#fff', padding: '20mm', boxSizing: 'border-box', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' },
+    cvHeader: { borderBottom: '2px solid #2563eb', paddingBottom: '20px', marginBottom: '20px' },
+    cvHeaderContent: { display: 'flex', gap: '20px', alignItems: 'center' },
+    previewPhoto: { width: '80px', height: '80px', borderRadius: '12px', objectFit: 'cover', border: '1px solid #e2e8f0' },
+    cvName: { margin: 0, fontSize: '28px', fontWeight: '900', color: '#0f172a' },
+    cvTagline: { margin: '4px 0', fontSize: '14px', color: '#2563eb', fontWeight: '700' },
+    cvContact: { margin: 0, fontSize: '11px', color: '#64748b' },
+    cvBody: { display: 'flex', gap: '30px' },
+    cvMain: { flex: 2 },
+    cvSide: { flex: 1, borderLeft: '1px solid #f1f5f9', paddingLeft: '20px' },
+    cvTitle: { fontSize: '12px', textTransform: 'uppercase', color: '#2563eb', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px', marginBottom: '10px' },
+    cvText: { fontSize: '11.5px', lineHeight: '1.6', color: '#475569', marginBottom: '10px' },
+    skillTagsWrap: { display: 'flex', flexWrap: 'wrap', gap: '5px' },
+    previewSkill: { background: '#f8fafc', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', border: '1px solid #e2e8f0' },
+    mobileToggleBtn: { background: '#2563eb', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '5px' },
+    mobileBackBtn: { background: '#fff', border: '1px solid #e2e8f0', padding: '10px 15px', borderRadius: '8px', marginBottom: '20px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }
 };

@@ -3,152 +3,107 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
-const morgan = require('morgan'); // ADDED: For request logging
-const helmet = require('helmet'); // ADDED: For security
+const morgan = require('morgan'); 
+const helmet = require('helmet'); 
 
-// --- IMPORT ROUTERS (The files we just finished) ---
+// --- 1. MODELS IMPORT ---
+const { User, Job, Course, Category } = require('./models'); 
+
+// --- 2. ROUTER IMPORTS ---
 const courseRoutes = require('./routes/courseRoutes'); 
-const jobRoutes = require('./routes/jobRoutes');
-const atsRoutes = require('./routes/atsRoutes');
-const cvRoutes = require('./routes/cvRoutes');
+const jobRoutes    = require('./routes/jobRoutes');   
+const atsRoutes    = require('./routes/scanner');    
+const cvRoutes     = require('./routes/cvRoutes');   
+const adminRoutes  = require('./routes/adminRoutes');
+const walletRoutes = require('./routes/walletRoutes');
+const authRoutes   = require('./routes/auth');
 
 const app = express();
 
-// --- MIDDLEWARE ---
-app.use(helmet()); // Protects headers
-app.use(morgan('dev')); // Logs requests to your terminal (HP-840 monitoring)
+// --- 3. MIDDLEWARE ---
+app.use(helmet({ crossOriginResourcePolicy: false })); 
+app.use(morgan('dev')); 
 app.use(cors({
-    origin: ["http://localhost:3000", "https://talent-bd.vercel.app"], 
+    origin: ["http://localhost:3000", "https://talent-bd-13.vercel.app"], 
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
 }));
 app.use(express.json());
 
-// --- DATABASE CONNECTION ---
-const mongoURI = process.env.MONGO_URI || "mongodb://localhost:27017/talentbd";
+// --- 4. DATABASE CONNECTION ---
+const mongoURI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/talentbd";
+mongoose.connect(mongoURI)
+    .then(() => console.log('✅ Talent-BD Engine: Synced with MongoDB'))
+    .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
-let isConnected = false;
-const connectDB = async () => {
-    if (isConnected) return;
+// --- 5. ADMIN CATEGORY API ---
+app.post('/api/admin/categories', async (req, res) => {
     try {
-        await mongoose.connect(mongoURI, {
-            serverSelectionTimeoutMS: 5000, // Sync for fast failure detection
+        const { name, group, icon } = req.body;
+        if (!name || !group) return res.status(400).json({ error: "Missing fields" });
+        const category = await Category.create({ 
+            name: name.trim(), 
+            group: group.toLowerCase(), 
+            icon: icon || (group === 'job' ? '💼' : '🎓') 
         });
-        isConnected = true;
-        console.log('✅ Talent-BD Engine: Connected to MongoDB 7.0');
-        seedAdmin();
-    } catch (err) {
-        console.error('❌ Connection Error:', err.message);
-    }
-};
-connectDB();
-
-// --- MODELS (Synced with User.js) ---
-const User = require('./models/User'); // Using the Master User model we built
-
-// --- SEEDING (Preserved & Fixed) ---
-async function seedAdmin() {
-    try {
-        const adminEmail = 'admin@test.com';
-        const existingAdmin = await User.findOne({ email: adminEmail });
-        if (!existingAdmin) {
-            // Note: Password hashing happens automatically via pre-save hook
-            const admin = new User({
-                name: 'System Admin',
-                email: adminEmail,
-                password: 'adminpassword123', 
-                role: 'admin',
-                walletBalance: 5000,
-                points: 2500,
-                savedCV: { summary: "System Administrator for TalentBD" }
-            });
-            await admin.save();
-            console.log('🏁 Admin account seeded successfully');
-        }
-    } catch (err) { console.error("Seeding error:", err); }
-}
-
-// --- BASE API ROUTES ---
-app.get('/', (req, res) => res.json({ 
-    status: "Active", 
-    service: "TalentBD Intelligence API",
-    temperature: "44°C Optimized" // A little easter egg for your hardware monitoring
-}));
-
-// --- AUTH ROUTES (Preserved with Sync) ---
-app.post('/api/signup', async (req, res) => {
-    try {
-        const { name, email, password, role } = req.body;
-        const cleanEmail = email.toLowerCase().trim();
-        const existingUser = await User.findOne({ email: cleanEmail });
-        if (existingUser) return res.status(400).json({ error: 'Email already registered' });
-
-        const user = new User({ name, email: cleanEmail, password, role: role || 'user' });
-        await user.save();
-        
-        const userResponse = user.toObject();
-        delete userResponse.password;
-        res.status(201).json({ success: true, user: userResponse });
-    } catch (e) { res.status(500).json({ error: 'Registration failed' }); }
+        res.status(201).json({ success: true, category });
+    } catch (err) { res.status(400).json({ error: "Sync failed: Duplicate Category" }); }
 });
 
+app.delete('/api/admin/categories/:id', async (req, res) => {
+    try {
+        await Category.findByIdAndDelete(req.params.id);
+        res.json({ success: true, message: "Category deleted" });
+    } catch (err) { res.status(500).json({ error: "Delete failed" }); }
+});
+
+app.get('/api/categories', async (req, res) => {
+    try {
+        const { group } = req.query;
+        const filter = group ? { group: group.toLowerCase() } : {};
+        const cats = await Category.find(filter).sort({ name: 1 });
+        res.json(cats);
+    } catch (err) { res.status(500).json({ error: "Fetch error" }); }
+});
+
+// --- 6. AUTHENTICATION ---
 app.post('/api/login', async (req, res) => {
     try {
         const { email, password } = req.body;
-        const user = await User.findOne({ email: email.toLowerCase().trim() })
-            .populate('bookmarks')
-            .populate('purchasedCourses');
-            
-        if (!user) return res.status(401).json({ error: 'Invalid credentials' });
-
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) return res.status(401).json({ error: 'Invalid credentials' });
-
-        const userResponse = user.toObject();
-        delete userResponse.password;
-        // The 'level' virtual is already in the model, but we ensure it's sent
-        res.json(userResponse);
-    } catch (e) { res.status(500).json({ error: 'Internal server error' }); }
+        const user = await User.findOne({ email: email.toLowerCase().trim() });
+        if (user && await bcrypt.compare(password, user.password)) {
+            const { password: _, ...data } = user._doc;
+            return res.json(data);
+        }
+        res.status(401).json({ error: 'Invalid credentials' });
+    } catch (e) { res.status(500).json({ error: 'Server error' }); }
 });
 
-// --- SYNCED FEATURE ROUTES ---
+// --- 7. ROUTE MOUNTING ---
 app.use('/api/courses', courseRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/ats', atsRoutes);
 app.use('/api/cv', cvRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/wallet', walletRoutes);
+app.use('/api/auth', authRoutes);
 
-// --- UPDATE PROGRESS (Preserved & Enhanced) ---
-app.put('/api/users/update-progress', async (req, res) => {
-    try {
-        const { email, skill, points, walletBalance } = req.body;
-        const updateData = {
-            $inc: { points: Number(points) || 0, walletBalance: Number(walletBalance) || 0 }
-        };
-        // If a new skill is provided, add it to the verified list
-        if (skill) updateData.$addToSet = { verifiedSkills: skill.toLowerCase() };
-
-        const updatedUser = await User.findOneAndUpdate(
-            { email: email.toLowerCase().trim() },
-            updateData,
-            { new: true }
-        ).select('-password');
-        res.json(updatedUser);
-    } catch (e) { res.status(500).json({ error: 'Update failed' }); }
+// --- 8. GLOBAL ERROR & PORT HANDLER ---
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ error: "Internal Sync Error" });
 });
 
-// --- VERCEL CATCH-ALL ---
-app.use((req, res) => {
-    res.status(404).json({ error: `Route ${req.url} not found on TalentBD.` });
+const PORT = process.env.PORT || 5000;
+
+const server = app.listen(PORT, () => {
+    console.log(`🚀 Engine Active: http://localhost:${PORT}`);
 });
 
-// --- EXPORT FOR VERCEL ---
-module.exports = app;
-
-// --- LOCAL LISTENER ---
-if (process.env.NODE_ENV !== 'production') {
-    const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () => {
-        console.log(`🚀 TalentBD Server: http://localhost:${PORT}`);
-        console.log(`💻 Hardware: HP-840 G3 (i5-6300U) | Temp: 44°C Safe`);
-    });
-}
+// --- FIX EADDRINUSE (Ghost Process Handler) ---
+server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.error(`❌ Port ${PORT} is busy. Cleaning up...`);
+        process.exit(1);
+    }
+});

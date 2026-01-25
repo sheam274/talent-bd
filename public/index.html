@@ -2,11 +2,61 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>TalentBD | Learn & Earn</title>
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta
+      name="description"
+      content="TalentBD 2026: Bangladesh's premier Learn-to-Earn platform with MFS integration."
+    />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;950&display=swap" rel="stylesheet">
+
+    <title>TalentBD | Learn, Verify & Earn ৳</title>
+
+    <style>
+      /* INITIAL PRE-LOADER STYLE: Glassmorphism Theme */
+      body {
+        margin: 0;
+        background-color: #f8fafc;
+        font-family: 'Inter', sans-serif;
+      }
+      #root:empty {
+        height: 100vh;
+        width: 100vw;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: radial-gradient(circle at top right, #eef2ff, #f8fafc);
+      }
+      #root:empty::after {
+        content: "";
+        width: 40px;
+        height: 40px;
+        border: 4px solid #e2e8f0;
+        border-top: 4px solid #2563eb;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <noscript>
+      <div style="padding: 20px; text-align: center; background: #fee2e2; color: #dc2626; font-weight: bold;">
+        You need to enable JavaScript to run TalentBD. Your wallet and learning progress require a secure JS connection.
+      </div>
+    </noscript>
+
     <div id="root"></div>
-  </body>
+
+    </body>
 </html>

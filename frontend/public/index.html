@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover" />
     <meta name="theme-color" content="#2563eb" />
     
-    <meta name="description" content="TalentBD - Skill Verification, ATS Resume Scanning, and Professional CV Architecture for the Bangladeshi Tech Industry." />
+    <meta name="description" content="TalentBD - Skill Verification, ATS Resume Scanning, and Professional CV Architecture with Dynamic Admin Categories." />
     <meta property="og:title" content="TalentBD | CV Architect & Skill Marketplace" />
     <meta property="og:description" content="Level up your career with verified badges and automated ATS resume matching." />
     <meta property="og:type" content="website" />
@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
-    <title>TalentBD | CV Architect</title>
+    <title>TalentBD | CV Architect & Admin Hub</title>
 
     <style>
       :root {
@@ -23,6 +23,7 @@
         --bg: #f8fafc;
         --glass: rgba(255, 255, 255, 0.7);
         --glass-border: rgba(255, 255, 255, 0.3);
+        --admin-accent: #8b5cf6; /* Added for Category Management UI markers */
       }
 
       * {
@@ -39,7 +40,6 @@
         color: #0f172a;
         height: 100%;
         width: 100%;
-        /* Adjusted for responsiveness: allow scrolling on mobile, hide on desktop CV view */
         overflow-x: hidden; 
       }
 
@@ -49,7 +49,7 @@
         flex-direction: column;
       }
 
-      /* Enhanced Loading State */
+      /* Responsive Loading Container */
       .loading-container {
         display: flex;
         flex-direction: column;
@@ -57,16 +57,18 @@
         align-items: center;
         height: 100vh;
         background: radial-gradient(circle at center, #ffffff 0%, #f1f5f9 100%);
+        padding: 20px;
+        text-align: center;
       }
 
       .loading-spinner {
-        width: 48px;
-        height: 48px;
+        width: 50px;
+        height: 50px;
         border: 5px solid #e2e8f0;
         border-top: 5px solid var(--primary);
         border-radius: 50%;
         box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
-        animation: spin 1s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite;
+        animation: spin 0.8s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite;
       }
 
       @keyframes spin { 100% { transform: rotate(360deg); } }
@@ -76,36 +78,50 @@
         color: #1e293b;
         font-size: 13px;
         font-weight: 800;
-        letter-spacing: 0.15em;
+        letter-spacing: 0.2em;
         text-transform: uppercase;
         animation: pulse 2s ease-in-out infinite;
       }
 
-      @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-
-      /* Responsive Global Utilities for React Components */
-      @media (max-width: 768px) {
-        body { overflow-y: auto; }
-        .loading-text { font-size: 11px; }
+      /* SYNC: Category Badge Animations (Used by React Components) */
+      .category-tag-anim {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
-      /* Custom Scrollbar for CV Panels (Synced with UI) */
+      @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+      /* Responsive Grid Overrides for HP-840 and Mobile */
+      @media (max-width: 768px) {
+        .loading-spinner { width: 40px; height: 40px; }
+        .loading-text { font-size: 11px; letter-spacing: 0.1em; }
+      }
+
+      /* Unified Platform Scrollbar */
       ::-webkit-scrollbar { width: 6px; }
       ::-webkit-scrollbar-track { background: transparent; }
       ::-webkit-scrollbar-thumb {
         background: #cbd5e1;
         border-radius: 10px;
       }
-      ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+      ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
     </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run TalentBD CV Architect.</noscript>
+    <noscript>You need to enable JavaScript to run TalentBD CV Architect and Admin Hub.</noscript>
+    
     <div id="root">
         <div class="loading-container">
             <div class="loading-spinner"></div>
-            <div class="loading-text">INITIALIZING ARCHITECT...</div>
+            <div class="loading-text">SYNCING TALENT-BD CATEGORIES...</div>
         </div>
     </div>
+
+    <script>
+      window.TalentBD_Config = {
+        platform: "2026 Engine",
+        hardware: "HP-840 Optimized",
+        temp: "44°C Safe"
+      };
+    </script>
   </body>
 </html>

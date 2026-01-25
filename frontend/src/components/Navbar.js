@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
     Menu, X, BookOpen, Briefcase, User, LogOut, 
-    ChevronRight, Settings, Sparkles, Wallet 
+    ChevronRight, Settings, Sparkles, Wallet, LayoutGrid 
 } from 'lucide-react';
 
 const Navbar = ({ setView, user, handleLogout }) => {
@@ -10,7 +10,6 @@ const Navbar = ({ setView, user, handleLogout }) => {
     const [hoveredItem, setHoveredItem] = useState(null);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
-    // SYNC: Handle Screen Resize for Responsive Logic
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 1024);
         const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -27,7 +26,7 @@ const Navbar = ({ setView, user, handleLogout }) => {
         { label: 'Find Jobs', icon: <Briefcase size={18}/>, view: 'jobs' },
         { label: 'Learning Hub', icon: <BookOpen size={18}/>, view: 'learning' },
         { label: 'CV Builder', icon: <Sparkles size={18}/>, view: 'cv-builder' },
-        { label: 'ATS Scanner', icon: <Settings size={18}/>, view: 'ats-scanner' }, // SYNC: Added for quick access
+        { label: 'ATS Scanner', icon: <Settings size={18}/>, view: 'ats-scanner' },
     ];
 
     const handleNav = (view) => {
@@ -41,10 +40,9 @@ const Navbar = ({ setView, user, handleLogout }) => {
     return (
         <nav style={{
             ...navStyles.nav,
-            backgroundColor: scrolled ? 'rgba(255, 255, 255, 0.85)' : '#ffffff',
-            backdropFilter: scrolled ? 'blur(16px)' : 'none',
+            backgroundColor: scrolled ? 'rgba(255, 255, 255, 0.9)' : '#ffffff',
+            backdropFilter: scrolled ? 'blur(20px)' : 'none',
             borderBottom: scrolled ? '1px solid rgba(226, 232, 240, 0.8)' : '1px solid #f1f5f9',
-            boxShadow: scrolled ? '0 10px 15px -3px rgba(0, 0, 0, 0.05)' : 'none',
         }}>
             <div style={navStyles.container}>
                 {/* Logo Section */}
@@ -55,7 +53,7 @@ const Navbar = ({ setView, user, handleLogout }) => {
                     </span>
                 </div>
 
-                {/* Desktop Navigation */}
+                {/* Desktop Menu + Admin Category Access */}
                 {!isMobile && (
                     <div style={navStyles.desktopMenu}>
                         {navItems.map((item) => (
@@ -70,40 +68,38 @@ const Navbar = ({ setView, user, handleLogout }) => {
                                 }}
                             >
                                 {item.label}
-                                {(hoveredItem === item.view || item.view === 'current') && <div style={navStyles.underline} />}
+                                {(hoveredItem === item.view) && <div style={navStyles.underline} />}
                             </button>
                         ))}
                         
+                        {/* ADMIN ONLY: Category Management Toggle */}
                         {user?.role === 'admin' && (
-                            <button onClick={() => handleNav('admin')} style={navStyles.adminLink}>
-                                <Settings size={16} /> Admin
+                            <button 
+                                onClick={() => handleNav('admin-categories')} 
+                                style={navStyles.adminCategoryBtn}
+                                title="Manage Job & Learning Categories"
+                            >
+                                <LayoutGrid size={16} />
+                                Categories
                             </button>
                         )}
                     </div>
                 )}
 
-                {/* Action Group (Points & Profile) */}
                 <div style={navStyles.actionGroup}>
                     {user ? (
                         <div style={navStyles.userGroup}>
-                            {/* SYNC: Wallet Balance (Shows real money earned from Quizzes) */}
-                            <div style={navStyles.walletBadge} title="Wallet Balance">
+                            <div style={navStyles.walletBadge}>
                                 <Wallet size={14} />
                                 <span>৳{user.walletBalance || 0}</span>
                             </div>
-
-                            {!isMobile && (
-                                <div style={navStyles.pointsBadge}>
-                                    {user.points || 0} XP
-                                </div>
-                            )}
 
                             <button onClick={() => handleNav('profile')} style={navStyles.profileBtn}>
                                 <div style={navStyles.avatar}>
                                     {user.name ? user.name[0].toUpperCase() : 'U'}
                                 </div>
-                                {!isMobile && <span style={{maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{user.name?.split(' ')[0]}</span>}
-                                <ChevronRight size={14} style={{opacity: 0.5}} />
+                                {!isMobile && <span style={navStyles.userName}>{user.name?.split(' ')[0]}</span>}
+                                <ChevronRight size={14} />
                             </button>
 
                             {!isMobile && (
@@ -113,9 +109,7 @@ const Navbar = ({ setView, user, handleLogout }) => {
                             )}
                         </div>
                     ) : (
-                        <button onClick={() => handleNav('login')} style={navStyles.premiumBtn}>
-                            Login
-                        </button>
+                        <button onClick={() => handleNav('login')} style={navStyles.loginBtn}>Login</button>
                     )}
 
                     {isMobile && (
@@ -126,7 +120,7 @@ const Navbar = ({ setView, user, handleLogout }) => {
                 </div>
             </div>
 
-            {/* Mobile Dropdown (Responsive & Synced) */}
+            {/* Mobile Dropdown - Optimized for Touch */}
             {isOpen && isMobile && (
                 <div style={navStyles.mobileMenu}>
                     {navItems.map((item) => (
@@ -135,18 +129,26 @@ const Navbar = ({ setView, user, handleLogout }) => {
                             {item.label}
                         </button>
                     ))}
+                    
+                    {user?.role === 'admin' && (
+                        <button onClick={() => handleNav('admin-categories')} style={{...navStyles.mobileLink, color: '#8b5cf6'}}>
+                            <span style={{...navStyles.mobileIconWrapper, color: '#8b5cf6'}}><LayoutGrid size={18} /></span>
+                            Manage Categories
+                        </button>
+                    )}
+
                     {user ? (
                         <>
                             <div style={navStyles.mobileDivider} />
                             <button onClick={() => handleNav('profile')} style={navStyles.mobileLink}>
-                                <span style={navStyles.mobileIconWrapper}><User size={18} /></span> Profile Settings
+                                <span style={navStyles.mobileIconWrapper}><User size={18} /></span> My Profile
                             </button>
                             <button onClick={handleLogout} style={{...navStyles.mobileLink, color: '#ef4444'}}>
                                 <span style={{...navStyles.mobileIconWrapper, color: '#ef4444'}}><LogOut size={18} /></span> Logout
                             </button>
                         </>
                     ) : (
-                        <button onClick={() => handleNav('login')} style={navStyles.mobilePremiumBtn}>Join Now</button>
+                        <button onClick={() => handleNav('login')} style={navStyles.mobileJoinBtn}>Join Platform</button>
                     )}
                 </div>
             )}
@@ -154,30 +156,33 @@ const Navbar = ({ setView, user, handleLogout }) => {
     );
 };
 
-// --- Exceptional Styles (HP-840 Optimized) ---
+// --- Synced Styles (Preserving all original spacing) ---
 const navStyles = {
-    nav: { position: 'fixed', top: 0, left: 0, right: 0, height: '72px', display: 'flex', alignItems: 'center', transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)', zIndex: 2000 },
+    nav: { position: 'fixed', top: 0, left: 0, right: 0, height: '72px', display: 'flex', alignItems: 'center', transition: 'all 0.3s ease', zIndex: 2000 },
     container: { width: '100%', maxWidth: '1400px', margin: '0 auto', padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-    logo: { fontSize: '24px', fontWeight: '900', cursor: 'pointer', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '-0.8px' },
-    logoIcon: { background: '#2563eb', color: '#fff', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)' },
-    desktopMenu: { display: 'flex', gap: '28px', alignItems: 'center' },
-    link: { background: 'none', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '15px', position: 'relative', padding: '10px 0', transition: 'all 0.2s', fontFamily: 'inherit' },
-    underline: { position: 'absolute', bottom: '-4px', left: '0', right: '0', height: '3px', background: '#2563eb', borderRadius: '10px' },
-    adminLink: { background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' },
-    actionGroup: { display: 'flex', gap: '16px', alignItems: 'center' },
-    userGroup: { display: 'flex', gap: '12px', alignItems: 'center' },
+    logo: { fontSize: '24px', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' },
+    logoIcon: { background: '#2563eb', color: '#fff', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' },
+    desktopMenu: { display: 'flex', gap: '24px', alignItems: 'center' },
+    link: { background: 'none', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '15px', position: 'relative', padding: '10px 0' },
+    underline: { position: 'absolute', bottom: '-2px', left: '0', right: '0', height: '3px', background: '#2563eb', borderRadius: '10px' },
+    
+    // ADMIN SYNC STYLE
+    adminCategoryBtn: { background: '#f5f3ff', color: '#7c3aed', border: '1px solid #ddd6fe', padding: '6px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' },
+    
+    actionGroup: { display: 'flex', gap: '12px', alignItems: 'center' },
+    userGroup: { display: 'flex', gap: '10px', alignItems: 'center' },
     walletBadge: { background: '#f0fdf4', color: '#16a34a', padding: '6px 12px', borderRadius: '10px', fontSize: '13px', fontWeight: '800', border: '1px solid #dcfce7', display: 'flex', alignItems: 'center', gap: '6px' },
-    pointsBadge: { background: '#eff6ff', color: '#2563eb', padding: '6px 12px', borderRadius: '10px', fontSize: '13px', fontWeight: '800', border: '1px solid #dbeafe' },
-    profileBtn: { display: 'flex', alignItems: 'center', gap: '10px', background: '#fff', border: '1px solid #e2e8f0', padding: '6px 14px', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '14px', color: '#1e293b', transition: 'all 0.2s shadow' },
-    avatar: { width: '28px', height: '28px', background: '#2563eb', color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' },
-    premiumBtn: { background: '#2563eb', color: '#fff', border: 'none', padding: '12px 28px', borderRadius: '12px', cursor: 'pointer', fontWeight: '800', fontSize: '15px', transition: 'transform 0.2s' },
-    logoutIconBtn: { background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '8px' },
+    profileBtn: { display: 'flex', alignItems: 'center', gap: '8px', background: '#fff', border: '1px solid #e2e8f0', padding: '6px 12px', borderRadius: '12px', cursor: 'pointer', fontWeight: '700' },
+    avatar: { width: '26px', height: '26px', background: '#2563eb', color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px' },
+    userName: { maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '14px' },
+    loginBtn: { background: '#2563eb', color: '#fff', border: 'none', padding: '10px 24px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' },
+    logoutIconBtn: { background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' },
     mobileToggle: { background: '#f8fafc', border: '1px solid #e2e8f0', padding: '8px', borderRadius: '10px', cursor: 'pointer' },
-    mobileMenu: { position: 'absolute', top: '80px', left: '20px', right: '20px', background: 'rgba(255, 255, 255, 0.98)', backdropFilter: 'blur(20px)', borderRadius: '24px', display: 'flex', flexDirection: 'column', padding: '20px', gap: '10px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)', border: '1px solid #f1f5f9' },
-    mobileLink: { background: 'none', border: 'none', textAlign: 'left', padding: '16px', fontSize: '16px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '14px', borderRadius: '14px', color: '#334155' },
+    mobileMenu: { position: 'absolute', top: '80px', left: '15px', right: '15px', background: '#fff', borderRadius: '20px', display: 'flex', flexDirection: 'column', padding: '15px', gap: '8px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', border: '1px solid #f1f5f9' },
+    mobileLink: { background: 'none', border: 'none', textAlign: 'left', padding: '14px', fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '12px', borderRadius: '12px', color: '#334155' },
     mobileIconWrapper: { color: '#2563eb' },
-    mobileDivider: { height: '1px', background: '#f1f5f9', margin: '10px 0' },
-    mobilePremiumBtn: { background: '#2563eb', color: '#fff', border: 'none', padding: '16px', borderRadius: '16px', fontWeight: '800', fontSize: '16px' }
+    mobileDivider: { height: '1px', background: '#f1f5f9', margin: '5px 0' },
+    mobileJoinBtn: { background: '#2563eb', color: '#fff', border: 'none', padding: '14px', borderRadius: '12px', fontWeight: '700' }
 };
 
 export default Navbar;
