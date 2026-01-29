@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -13,40 +13,60 @@ export default function WalletDashboard({ user, setView, setUser }) {
     const [phone, setPhone] = useState('');
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
-    // Admin Category State
+    // Admin Category State - Initialized as an empty array to prevent .map errors
     const [categories, setCategories] = useState([]);
     const [newCat, setNewCat] = useState('');
-    const isAdmin = user?.role === 'admin' || user?.email === 'admin@talentbd.com';
+    const isAdmin = user?.role === 'admin' || user?.email === 'admin@test.com';
+
+    // --- ADMIN CATEGORY MANAGEMENT ---
+    const fetchCategories = useCallback(async () => {
+        try {
+            const res = await axios.get('http://localhost:5000/api/categories');
+            /**
+             * FIX: Our backend returns { categories: [...] }. 
+             * We must extract the array before setting state.
+             */
+            const data = Array.isArray(res.data.categories) ? res.data.categories : [];
+            setCategories(data);
+        } catch (err) { 
+            console.warn("⚠️ WalletDashboard: Syncing with Node.js Port 5000 failed."); 
+            setCategories([]); // Fallback to empty array
+        }
+    }, []);
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 768);
         window.addEventListener('resize', handleResize);
-        if (isAdmin) fetchCategories();
+        
+        if (isAdmin) {
+            fetchCategories();
+        }
+        
         return () => window.removeEventListener('resize', handleResize);
-    }, [isAdmin]);
-
-    // --- ADMIN CATEGORY MANAGEMENT ---
-    const fetchCategories = async () => {
-        try {
-            const res = await axios.get('http://localhost:5000/api/categories');
-            setCategories(res.data);
-        } catch (err) { console.warn("Syncing with Node.js Port 5000..."); }
-    };
+    }, [isAdmin, fetchCategories]);
 
     const addCategory = async () => {
         if (!newCat) return;
         try {
-            await axios.post('http://localhost:5000/api/admin/categories', { name: newCat, group: 'global' });
+            await axios.post('http://localhost:5000/api/admin/categories', { 
+                name: newCat, 
+                group: 'job' // Defaulting to 'job' for proper sidebar filtering
+            });
             setNewCat('');
             fetchCategories();
-        } catch (err) { alert("Admin sync error"); }
+        } catch (err) { 
+            alert("Admin sync error: Check if backend is running."); 
+        }
     };
 
     const deleteCategory = async (id) => {
+        if (!window.confirm("Delete this tag?")) return;
         try {
             await axios.delete(`http://localhost:5000/api/admin/categories/${id}`);
             fetchCategories();
-        } catch (err) { console.error(err); }
+        } catch (err) { 
+            console.error("Delete failed:", err); 
+        }
     };
 
     // XP & Level Logic
@@ -74,7 +94,7 @@ export default function WalletDashboard({ user, setView, setUser }) {
     return (
         <div style={{...dashStyles.container, padding: isMobile ? '20px 15px' : '40px 25px'}}>
             
-            {/* 1. ADMIN CATEGORY SYSTEM (Integrated for Global Control) */}
+            {/* 1. ADMIN CATEGORY SYSTEM */}
             {isAdmin && (
                 <div style={dashStyles.adminPanel}>
                     <div style={dashStyles.adminHeader}>
@@ -91,13 +111,22 @@ export default function WalletDashboard({ user, setView, setUser }) {
                         <button onClick={addCategory} style={dashStyles.adminAddBtn}><Plus size={16}/> Sync Tag</button>
                     </div>
                     <div style={dashStyles.catScroll}>
-                        {categories.map(c => (
-                            <div key={c._id} style={dashStyles.catChip}>
-                                <Layers size={12} color="#64748b" />
-                                <span>{c.name}</span>
-                                <Trash2 size={12} style={{cursor:'pointer', color:'#ef4444'}} onClick={() => deleteCategory(c._id)} />
-                            </div>
-                        ))}
+                        {/* SAFE MAP: Optional chaining prevents "is not a function" error */}
+                        {categories?.length > 0 ? (
+                            categories.map(c => (
+                                <div key={c._id} style={dashStyles.catChip}>
+                                    <Layers size={12} color="#64748b" />
+                                    <span>{c.name}</span>
+                                    <Trash2 
+                                        size={12} 
+                                        style={{cursor:'pointer', color:'#ef4444'}} 
+                                        onClick={() => deleteCategory(c._id)} 
+                                    />
+                                </div>
+                            ))
+                        ) : (
+                            <span style={{fontSize: '12px', color: '#94a3b8'}}>No active tags in database.</span>
+                        )}
                     </div>
                 </div>
             )}

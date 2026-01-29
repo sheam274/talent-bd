@@ -1,79 +1,135 @@
 const puppeteer = require('puppeteer');
 const Job = require('../models/Job');
-const Category = require('../models/Category'); // SYNC: Accessing Admin-defined categories
+const Category = require('../models/Category');
 
+/**
+ * TALENTBD CLOUD SCRAPER 2026
+ * Synchronizes external teletalk data with your custom Admin Taxonomy.
+ */
 const scrapeJobs = async () => {
-    // 1. Initialize Browser for HP-840 Environment
+    console.log("🚀 Initializing TalentBD Scraper Engine...");
+
     const browser = await puppeteer.launch({ 
         headless: "new", 
-        args: ['--no-sandbox', '--disable-setuid-sandbox'] 
+        args: [
+            '--no-sandbox', 
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--window-size=1920,1080'
+        ] 
     });
-    const page = await browser.newPage();
     
     try {
-        // 2. Fetch Active Admin Categories from DB
-        // SYNC: Scraper will now only use categories approved by the Admin
-        const activeCategories = await Category.find({ group: 'job' }).select('name');
-        const categoryList = activeCategories.map(c => c.name);
+        const page = await browser.newPage();
+        
+        // Professional User Agent to bypass basic bot detection
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36');
 
-        await page.goto('https://alljobs.teletalk.com.bd/jobs/latest', { waitUntil: 'networkidle2' });
+        // 1. FETCH ADMIN TAXONOMY
+        // We fetch the full objects so we can map by Name but save the ID
+        const activeCategories = await Category.find({ group: 'job', isActive: true });
+        
+        // Prepare simplified list for the Browser context
+        const categoryMap = activeCategories.map(c => ({
+            id: c._id.toString(),
+            name: c.name
+        }));
 
-        const jobs = await page.evaluate((categoryList) => {
-            const results = [];
-            const rows = document.querySelectorAll('tr'); 
+        // 2. NAVIGATE TO SOURCE
+        console.log("📡 Connecting to AllJobs Teletalk...");
+        await page.goto('https://alljobs.teletalk.com.bd/jobs/latest', { 
+            waitUntil: 'domcontentloaded', 
+            timeout: 60000 
+        });
+
+        // 3. EXTRACTION & INTELLIGENT MATCHING
+        const scrapedJobs = await page.evaluate((categoryMap) => {
+            const jobs = [];
+            // Target the specific table rows in the Teletalk layout
+            const rows = document.querySelectorAll('table tr'); 
             
             rows.forEach(row => {
-                const titleEl = row.querySelector('td a');
-                if (titleEl) {
-                    const title = titleEl.innerText;
-                    
-                    // --- INTELLIGENT CATEGORIZATION SYNC ---
-                    // It checks if the title matches any Admin-added category
-                    let detectedCategory = "General"; 
-                    
-                    for (let cat of categoryList) {
-                        const regex = new RegExp(cat, 'i');
-                        if (regex.test(title)) {
-                            detectedCategory = cat;
-                            break;
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 3) {
+                    const titleLink = cells[0].querySelector('a');
+                    const companyName = cells[1]?.innerText.trim();
+                    const deadline = cells[2]?.innerText.trim();
+
+                    if (titleLink) {
+                        const title = titleLink.innerText.trim();
+                        const link = titleLink.href;
+
+                        // --- SMART CATEGORIZATION ---
+                        // Find a match from our Admin Categories
+                        let matched = categoryMap.find(cat => 
+                            title.toLowerCase().includes(cat.name.toLowerCase()) ||
+                            companyName.toLowerCase().includes(cat.name.toLowerCase())
+                        );
+
+                        // Fallback logic for common BD sectors
+                        let finalCategoryId = matched ? matched.id : null;
+                        let finalCategoryName = matched ? matched.name : "General";
+
+                        // Apply secondary pattern matching if no direct Admin match found
+                        if (!matched) {
+                            const t = title.toLowerCase();
+                            if (t.includes('bank')) finalCategoryName = "Banking";
+                            if (t.includes('engineer') || t.includes('it')) finalCategoryName = "IT & Software";
+                            if (t.includes('ministry') || t.includes('directorate')) finalCategoryName = "Government";
                         }
-                    }
 
-                    // Fallback logic for common Bangladeshi job types
-                    if (detectedCategory === "General") {
-                        if (title.includes("Director") || title.includes("Ministry")) detectedCategory = "Government";
-                        else if (title.includes("Bank")) detectedCategory = "Bank";
+                        jobs.push({
+                            title: title,
+                            company: companyName || "Government/Semi-Gov",
+                            officialApplyLink: link,
+                            categoryName: finalCategoryName, // Temporary name for post-processing
+                            categoryId: finalCategoryId,     // The real MongoDB ID
+                            deadline: deadline || "Check Circular",
+                            location: "Bangladesh",
+                            employmentType: "Full-time",
+                            isScraped: true
+                        });
                     }
-
-                    results.push({
-                        title: title.trim(),
-                        company: "Teletalk AllJobs Sync",
-                        category: detectedCategory,
-                        deadline: "Refer to Circular",
-                        link: titleEl.href,
-                        isScraped: true,
-                        scrapedAt: new Date()
-                    });
                 }
             });
-            return results;
-        }, categoryList); // Pass Admin categories into the browser context
+            return jobs;
+        }, categoryMap);
 
-        // 3. Database Upsert (Prevents Duplicates)
-        for (let job of jobs) {
-            await Job.updateOne(
-                { title: job.title, link: job.link }, 
-                { $set: job }, 
+        // 4. DATABASE UPSERT (DEDUPLICATION)
+        console.log(`🔍 Found ${scrapedJobs.length} raw jobs. Filtering and saving...`);
+        
+        let upsertedCount = 0;
+        for (const jobData of scrapedJobs) {
+            // Find the ID for fallback names if they didn't match an Admin ID initially
+            if (!jobData.categoryId) {
+                const fallbackCat = activeCategories.find(c => c.name === jobData.categoryName);
+                if (fallbackCat) jobData.categoryId = fallbackCat._id;
+            }
+
+            // Upsert based on the link (unique identifier)
+            const result = await Job.updateOne(
+                { officialApplyLink: jobData.officialApplyLink },
+                { 
+                    $setOnInsert: {
+                        ...jobData,
+                        createdAt: new Date(),
+                        isActive: true
+                    }
+                },
                 { upsert: true }
             );
+
+            if (result.upsertedCount > 0) {
+                upsertedCount++;
+            }
         }
 
-        console.log(`✅ Scraper Sync: ${jobs.length} jobs updated at 44°C.`);
-        return jobs.length;
+        console.log(`✅ Scraper Finished. New jobs added: ${upsertedCount}`);
+        return upsertedCount;
 
     } catch (err) { 
-        console.error("Scraper Error:", err);
-        return 0; 
+        console.error("❌ Scraper Engine Error:", err.message);
+        return 0;
     } finally { 
         await browser.close(); 
     }

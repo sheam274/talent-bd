@@ -1,6 +1,7 @@
 /**
  * TalentBD Design System v2.0 (2026 Synchronized Edition)
  * Optimized for HP-840 Widescreen & Mobile High-DPI Displays.
+ * This file serves as the Single Source of Truth for all styled-components or inline styles.
  */
 
 export const theme = {
@@ -129,6 +130,14 @@ export const theme = {
         }
     },
 
+    // Industry Hub (Category Sidebar) Constants
+    industryHub: {
+        sidebarWidth: '280px',
+        sidebarGap: '32px',
+        itemHeight: '48px',
+        activeIndicator: '#2563eb',
+    },
+
     // Global Category & Taxonomy Tokens
     categories: {
         chipPadding: '8px 16px',
@@ -153,9 +162,16 @@ export const theme = {
             gap: 'clamp(16px, 3vw, 32px)',
             gridTemplateColumns: `repeat(auto-fit, minmax(${minWidth}, 1fr))`,
         }),
-        // Clean sidebar config for component-level media queries
-        sidebarWidth: '300px',
-        sidebarGap: '40px'
+        flexCenter: {
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+        },
+        pageWrapper: {
+            maxWidth: '1440px',
+            margin: '0 auto',
+            padding: '0 24px'
+        }
     }
 };
 

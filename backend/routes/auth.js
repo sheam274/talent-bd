@@ -2,61 +2,74 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User'); // Ensure correct model paths
+const User = require('../models/User'); 
 const Category = require('../models/Category');
 
-// --- 🛡️ MIDDLEWARE: JWT & ROLE VERIFICATION ---
+/**
+ * 🛡️ MIDDLEWARE: JWT & ROLE VERIFICATION
+ * Protects administrative routes from unauthorized access.
+ */
 const verifyAdmin = (req, res, next) => {
     try {
-        const token = req.headers.authorization?.split(' ')[1];
-        if (!token) return res.status(403).json({ message: "Access Denied: No Token Provided" });
+        const authHeader = req.headers.authorization;
+        const token = authHeader && authHeader.split(' ')[1];
+        
+        if (!token) {
+            return res.status(403).json({ success: false, message: "Access Denied: No Token Provided" });
+        }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'talentbd_secret_key_2026');
         
         if (decoded.role !== 'admin') {
-            return res.status(403).json({ message: "Access Denied: Admins Only" });
+            return res.status(403).json({ success: false, message: "Access Denied: Admins Only" });
         }
 
         req.adminId = decoded.id;
         next();
     } catch (err) {
-        res.status(401).json({ message: "Session Expired. Please login again." });
+        return res.status(401).json({ success: false, message: "Session Expired. Please login again." });
     }
 };
 
-// --- LOGIN ROUTE (FIXED) ---
+/**
+ * 🔑 LOGIN ROUTE
+ * Handles authentication and initial data synchronization.
+ */
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
-        if (!email || !password) return res.status(400).json({ message: "Email and password required" });
+        if (!email || !password) {
+            return res.status(400).json({ success: false, message: "Email and password required" });
+        }
 
-        // FIX 1: Explicitly select '+password' because we set select: false in the Schema
+        // 1. Fetch user and explicitly select hidden password field
         const user = await User.findOne({ email: email.toLowerCase().trim() })
             .select('+password') 
             .populate('bookmarks')
             .populate('appliedJobs.jobId')
             .populate('purchasedCourses');
         
-        // FIX 2: Added safety check for 'user' before checking password
+        // 2. Verification Guard
         if (!user) {
-            return res.status(401).json({ message: "Invalid email or password" });
+            return res.status(401).json({ success: false, message: "Invalid email or password" });
         }
 
-        // Now bcrypt has a valid string to compare against
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            return res.status(401).json({ message: "Invalid email or password" });
+            return res.status(401).json({ success: false, message: "Invalid email or password" });
         }
 
-        const platformCategories = await Category.find({ isActive: { $ne: false } });
+        // 3. Fetch Platform Taxonomy for Frontend Sync
+        const platformCategories = await Category.find({ isActive: true }).sort({ priority: -1 });
 
+        // 4. Generate Session Token
         const token = jwt.sign(
             { id: user._id, role: user.role },
             process.env.JWT_SECRET || 'talentbd_secret_key_2026',
             { expiresIn: '7d' }
         );
 
-        // Remove password from the object before sending to frontend
+        // 5. Cleanse User Object (Security)
         const userObj = user.toObject();
         delete userObj.password;
 
@@ -66,44 +79,52 @@ router.post('/login', async (req, res) => {
                 ...userObj, 
                 token
             },
-            // FIX 3: Sending categories at the top level for easier frontend consumption
             categories: platformCategories 
         });
 
     } catch (err) {
         console.error("🔥 Login Error:", err);
-        res.status(500).json({ error: "Server Internal Sync Error" });
+        res.status(500).json({ success: false, error: "Server Internal Sync Error" });
     }
 });
 
-// --- ADMIN CATEGORY MANAGEMENT (SECURED) ---
+/**
+ * 📂 ADMIN: CATEGORY MANAGEMENT
+ */
 
+// Create Category
 router.post('/admin/categories', verifyAdmin, async (req, res) => {
     try {
-        const { name, group, icon, priority } = req.body;
-        if (!name || !group) return res.status(400).json({ message: "Name and group required" });
+        const { name, group, icon, priority, color } = req.body;
+        if (!name || !group) {
+            return res.status(400).json({ success: false, message: "Name and group required" });
+        }
 
         const newCat = await Category.create({ 
             name: name.trim(), 
             group: group.toLowerCase(),
-            icon: icon || '📁',
+            icon: icon || 'Briefcase',
             priority: priority || 0,
+            color: color || '#2563eb',
             isActive: true
         });
         
         res.status(201).json({ success: true, category: newCat });
     } catch (err) {
-        res.status(400).json({ error: "Category sync failed" });
+        res.status(400).json({ success: false, error: err.message || "Category creation failed" });
     }
 });
 
+// Delete Category
 router.delete('/admin/categories/:id', verifyAdmin, async (req, res) => {
     try {
-        // Soft delete or Hard delete based on your preference
-        await Category.findByIdAndDelete(req.params.id);
+        const deleted = await Category.findByIdAndDelete(req.params.id);
+        if (!deleted) {
+            return res.status(404).json({ success: false, message: "Category not found" });
+        }
         res.json({ success: true, message: "Category removed from platform" });
     } catch (err) {
-        res.status(500).json({ error: "Delete operation failed" });
+        res.status(500).json({ success: false, error: "Delete operation failed" });
     }
 });
 

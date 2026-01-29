@@ -3,8 +3,7 @@ import ReactDOM from 'react-dom/client';
 
 /**
  * 1. SYNCHRONIZED ARCHITECTURE
- * index.css: Handles CSS variables and Tailwind-style base resets.
- * theme.js: Centralized design tokens (colors, spacing, typography). [cite: 383]
+ * Imports global CSS for tailwind-style resets and the design tokens.
  */
 import './index.css'; 
 import { theme } from './theme';
@@ -14,8 +13,8 @@ import App from './App';
 
 /**
  * 3. 2026 MOBILE VIEWPORT FIX
- * Solves the 100vh mobile address bar issue to ensure components fit 
- * perfectly on every screen, especially for real-time tracking modules. [cite: 17, 255]
+ * Fixes the "100vh" issue on mobile browsers (Safari/Chrome address bars).
+ * Access in CSS via: height: calc(var(--vh, 1vh) * 100);
  */
 const syncViewportHeight = () => {
     if (typeof window !== 'undefined') {
@@ -24,7 +23,6 @@ const syncViewportHeight = () => {
     }
 };
 
-// Listen for resize and orientation changes to maintain a stable UI
 if (typeof window !== 'undefined') {
     window.addEventListener('resize', syncViewportHeight);
     window.addEventListener('orientationchange', syncViewportHeight);
@@ -33,50 +31,37 @@ if (typeof window !== 'undefined') {
 
 /**
  * 4. PERFORMANCE RENDER ARCHITECTURE
- * Uses React 18 Concurrent Root for smooth animations of the XP bar 
- * and real-time location updates from Google Maps API. [cite: 200, 446]
+ * Initializing the React 18 Concurrent Root for low-latency UI updates.
  */
 const rootElement = document.getElementById('root');
 
+// Styling defined here to ensure it's available during the first paint
+const globalWrapperStyle = {
+    minHeight: 'calc(var(--vh, 1vh) * 100)',
+    width: '100%',
+    backgroundColor: theme?.colors?.bgMain || '#f8fafc',
+    display: 'flex',
+    flexDirection: 'column',
+    overflowX: 'hidden',
+    WebkitFontSmoothing: 'antialiased',
+    MozOsxFontSmoothing: 'grayscale',
+    color: theme?.colors?.textMain || '#0f172a',
+    fontFamily: theme?.typography?.primary || 'Inter, sans-serif'
+};
+
 if (!rootElement) {
-    console.error("❌ Critical: 'root' element missing. Ensure <div id='root'></div> exists in public/index.html.");
+    console.error("❌ Critical: 'root' element missing in public/index.html.");
 } else {
     const root = ReactDOM.createRoot(rootElement);
 
     root.render(
         <React.StrictMode>
-            {/* TOP-LEVEL CONTAINER:
-                Prevents background "flicker" and ensures a consistent 
-                experience across Android devices (Minimum SDK: Android 8.0). [cite: 363]
-            */}
             <div 
                 className="talentbd-global-wrapper" 
-                style={globalStyles.wrapper}
+                style={globalWrapperStyle}
             >
                 <App />
             </div>
         </React.StrictMode>
     );
 }
-
-/**
- * 5. SYSTEM STYLING
- * Bridge between theme.js and the physical rendering layer.
- * Values derived from the TalentBD Design System. [cite: 95, 383]
- */
-const globalStyles = {
-    wrapper: {
-        // Uses the dynamic viewport height fix
-        minHeight: 'calc(var(--vh, 1vh) * 100)',
-        width: '100%',
-        backgroundColor: theme?.colors?.bgMain || '#f8fafc',
-        display: 'flex',
-        flexDirection: 'column',
-        overflowX: 'hidden',
-        // Smooth font rendering for high-density mobile screens
-        WebkitFontSmoothing: 'antialiased',
-        MozOsxFontSmoothing: 'grayscale',
-        color: theme?.colors?.textMain || '#0f172a',
-        fontFamily: theme?.typography?.primary || 'Inter, sans-serif'
-    }
-};

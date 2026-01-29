@@ -67,21 +67,26 @@ async function runSeeder() {
         }
 
         console.log("⏳ Connecting to TalentBD Cloud...");
-        await mongoose.connect(connString);
+        // Added standard connection options for stability
+        await mongoose.connect(connString, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true
+        });
         console.log("✅ TALENTBD ENGINE: Connected to MongoDB Atlas");
 
         // --- 1. CLEANUP ---
-        // Vital to prevent duplicate key errors if the seeder is run multiple times
         await Job.deleteMany({}); 
-        console.log("🧹 Database Cleaned: Fresh start enabled.");
+        console.log("🧹 Database Cleaned: Existing jobs removed.");
 
         for (const jobData of seedJobs) {
             // 2. CATEGORY SYNC
-            // This ensures every job is mapped to a valid Category object
+            // Case-insensitive search for the category
             let categoryDoc = await Category.findOne({ 
-                name: { $regex: new RegExp(`^${jobData.category}$`, 'i') } 
+                name: { $regex: new RegExp(`^${jobData.category}$`, 'i') },
+                group: 'job'
             });
 
+            // If category doesn't exist, create it so the dropdown works!
             if (!categoryDoc) {
                 console.log(`📁 AUTO-GENERATING CATEGORY: ${jobData.category}`);
                 categoryDoc = await Category.create({ 
@@ -89,23 +94,23 @@ async function runSeeder() {
                     group: 'job',
                     isActive: true,
                     priority: 5,
-                    icon: 'Briefcase' 
+                    icon: jobData.category.toLowerCase().includes('software') ? 'Code' : 'Briefcase',
+                    color: '#2563eb'
                 });
             }
 
-            // 3. REMOTE LOGIC & DATA NORMALIZATION
-            const isRemoteString = jobData.location.toLowerCase();
+            // 3. REMOTE LOGIC
+            const locationLower = jobData.location.toLowerCase();
             const remoteLogic = 
                 jobData.isRemote || 
-                isRemoteString.includes('remote') || 
-                isRemoteString.includes('worldwide');
+                locationLower.includes('remote') || 
+                locationLower.includes('worldwide');
 
-            // 4. SAVE JOB
-            // We use categoryRef for internal DB joins and category name for the UI
+            // 4. SAVE JOB WITH REFERENCE
             const newJob = new Job({
                 ...jobData,
-                category: categoryDoc.name,
-                categoryRef: categoryDoc._id,
+                category: categoryDoc.name, // String name for easy UI display
+                categoryRef: categoryDoc._id, // MongoDB ID for powerful filtering
                 isRemote: remoteLogic,
                 isActive: true
             });
@@ -114,7 +119,7 @@ async function runSeeder() {
             console.log(`🚀 DEPLOYED: ${jobData.title} @ ${jobData.company}`);
         }
 
-        console.log("\n🏁 SEEDING COMPLETE: Your 2026 Dashboard is now live.");
+        console.log("\n🏁 SEEDING COMPLETE: Your TalentBD 2026 Environment is ready.");
         process.exit(0);
     } catch (err) {
         console.error("❌ SEEDER CRASHED:", err.message);

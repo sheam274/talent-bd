@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-import { Briefcase, MapPin, Calendar, DollarSign, Send, XCircle, CheckCircle } from 'lucide-react';
+import { Briefcase, MapPin, Calendar, DollarSign, XCircle, CheckCircle } from 'lucide-react';
 
-const API_BASE = "http://localhost:5000/api";
+// Dynamic API detection for 2026 Environment
+const API_BASE = window.location.hostname === 'localhost' 
+    ? "http://localhost:5000/api" 
+    : "https://talent-bd-backend.onrender.com/api";
 
 export default function AdminPostJob({ user, setView }) {
     const [formData, setFormData] = useState({
@@ -12,7 +15,7 @@ export default function AdminPostJob({ user, setView }) {
         category: '',
         location: 'Remote',
         salary: 'Negotiable',
-        jobType: 'full-time', // Matches lowercase enum in Mongoose
+        jobType: 'full-time',
         deadline: '',
         description: '',
         link: ''
@@ -22,17 +25,19 @@ export default function AdminPostJob({ user, setView }) {
     const [status, setStatus] = useState({ type: '', msg: '' });
     const [loading, setLoading] = useState(false);
 
-    // Sync categories from taxonomy engine
+    // --- 1. SYNC CATEGORIES FROM BACKEND ---
     useEffect(() => {
         const fetchCats = async () => {
             try {
-                // Fixed endpoint to match your optimized backend route
+                // Fetching specifically the 'job' group sectors
                 const res = await axios.get(`${API_BASE}/categories?group=job`);
-                // Check if response has .categories array or is the array itself
+                
+                // Extracting the array correctly from your standard response pattern
                 const catList = res.data.categories || (Array.isArray(res.data) ? res.data : []);
                 setCategories(catList);
             } catch (err) {
-                console.error("❌ Failed to fetch job categories:", err);
+                console.error("❌ Taxonomy Engine Offline:", err);
+                setStatus({ type: 'error', msg: 'Could not load Industry Sectors. Please check backend.' });
             }
         };
         fetchCats();
@@ -46,7 +51,7 @@ export default function AdminPostJob({ user, setView }) {
         e.preventDefault();
         
         if (!formData.category) {
-            setStatus({ type: 'error', msg: 'Please select an Industry Sector.' });
+            setStatus({ type: 'error', msg: 'Please select an Industry Sector to continue.' });
             return;
         }
 
@@ -61,26 +66,27 @@ export default function AdminPostJob({ user, setView }) {
                 } 
             };
             
-            // Map the category string to the actual MongoDB Object ID
+            // RELATIONAL LINKING: Map the selected string name back to its MongoDB ObjectID
             const selectedCatDoc = categories.find(c => c.name === formData.category);
             
             const submissionData = {
                 ...formData,
-                categoryRef: selectedCatDoc?._id // Essential for relational integrity
+                categoryRef: selectedCatDoc?._id, // This enables advanced filtering
+                isActive: true
             };
 
-            const res = await axios.post(`${API_BASE}/jobs/create`, submissionData, config);
+            // Using the /admin/jobs route to trigger isAdmin middleware checks
+            const res = await axios.post(`${API_BASE}/admin/jobs`, submissionData, config);
 
             if (res.data.success) {
-                setStatus({ type: 'success', msg: 'Job Vacancy Deployed Successfully!' });
-                // Reset form on success
-                setTimeout(() => setView('jobs'), 1500);
+                setStatus({ type: 'success', msg: '🚀 Vacancy successfully deployed to TalentBD board!' });
+                // Redirect to job feed after success
+                setTimeout(() => setView('jobs'), 2000);
             }
         } catch (err) {
-            console.error("Submission Error:", err.response?.data);
             setStatus({ 
                 type: 'error', 
-                msg: err.response?.data?.message || "Deployment failed. Check admin permissions." 
+                msg: err.response?.data?.message || "Deployment failed. Check all required fields." 
             });
         } finally {
             setLoading(false);
@@ -97,48 +103,56 @@ export default function AdminPostJob({ user, setView }) {
                 <header style={styles.header}>
                     <div style={styles.iconCircle}><Briefcase color="#fff" /></div>
                     <h2 style={styles.headerTitle}>Post Official Vacancy</h2>
-                    <p style={styles.headerSubtitle}>TalentBD 2026 Recruitment Management</p>
+                    <p style={styles.headerSubtitle}>TalentBD Recruitment Management</p>
                 </header>
 
                 {status.msg && (
-                    <motion.div 
-                        initial={{ scale: 0.9, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        style={{ 
-                            ...styles.alert, 
-                            backgroundColor: status.type === 'success' ? '#ecfdf5' : '#fef2f2',
-                            border: `1px solid ${status.type === 'success' ? '#10b981' : '#ef4444'}`
-                        }}
-                    >
+                    <div style={{ 
+                        ...styles.alert, 
+                        backgroundColor: status.type === 'success' ? '#ecfdf5' : '#fef2f2',
+                        border: `1px solid ${status.type === 'success' ? '#10b981' : '#ef4444'}`
+                    }}>
                         {status.type === 'success' ? <CheckCircle size={18} color="#059669" /> : <XCircle size={18} color="#dc2626" />}
-                        <span style={{ color: status.type === 'success' ? '#065f46' : '#991b1b' }}>{status.msg}</span>
-                    </motion.div>
+                        <span style={{ color: status.type === 'success' ? '#065f46' : '#991b1b', fontWeight: '600' }}>
+                            {status.msg}
+                        </span>
+                    </div>
                 )}
 
                 <form onSubmit={handleSubmit} style={styles.formGrid}>
                     <div style={styles.inputGroup}>
                         <label style={styles.label}>Job Title</label>
-                        <input name="title" value={formData.title} required style={styles.input} placeholder="e.g. Senior MERN Developer" onChange={handleChange} />
+                        <input name="title" value={formData.title} required style={styles.input} placeholder="e.g. Senior Node.js Developer" onChange={handleChange} />
                     </div>
 
                     <div style={styles.inputGroup}>
                         <label style={styles.label}>Company Name</label>
-                        <input name="company" value={formData.company} required style={styles.input} placeholder="e.g. TalentBD Tech" onChange={handleChange} />
+                        <input name="company" value={formData.company} required style={styles.input} placeholder="Company Name Ltd." onChange={handleChange} />
                     </div>
 
                     <div style={styles.inputGroup}>
                         <label style={styles.label}>Industry Sector</label>
-                        <select name="category" value={formData.category} required style={styles.input} onChange={handleChange}>
-                            <option value="">Select Category</option>
-                            {categories.map(cat => (
-                                <option key={cat._id} value={cat.name}>{cat.name}</option>
-                            ))}
+                        <select 
+                            name="category" 
+                            value={formData.category} 
+                            required 
+                            style={styles.select} 
+                            onChange={handleChange}
+                        >
+                            <option value="">-- Select Sector --</option>
+                            {categories.length > 0 ? (
+                                categories.map(cat => (
+                                    <option key={cat._id} value={cat.name}>{cat.name}</option>
+                                ))
+                            ) : (
+                                <option disabled>No Sectors Found (Syncing...)</option>
+                            )}
                         </select>
                     </div>
 
                     <div style={styles.inputGroup}>
                         <label style={styles.label}>Employment Type</label>
-                        <select name="jobType" value={formData.jobType} style={styles.input} onChange={handleChange}>
+                        <select name="jobType" value={formData.jobType} style={styles.select} onChange={handleChange}>
                             <option value="full-time">Full-time</option>
                             <option value="part-time">Part-time</option>
                             <option value="contract">Contract</option>
@@ -149,7 +163,7 @@ export default function AdminPostJob({ user, setView }) {
 
                     <div style={styles.inputGroup}>
                         <label style={styles.label}><MapPin size={14} /> Location</label>
-                        <input name="location" value={formData.location} style={styles.input} placeholder="e.g. Remote or Dhaka" onChange={handleChange} />
+                        <input name="location" value={formData.location} style={styles.input} placeholder="e.g. Dhaka (Remote)" onChange={handleChange} />
                     </div>
 
                     <div style={styles.inputGroup}>
@@ -158,26 +172,32 @@ export default function AdminPostJob({ user, setView }) {
                     </div>
 
                     <div style={styles.inputGroup}>
-                        <label style={styles.label}><DollarSign size={14} /> Salary Range</label>
-                        <input name="salary" value={formData.salary} style={styles.input} placeholder="e.g. 80,000 - 120,000 BDT" onChange={handleChange} />
+                        <label style={styles.label}><DollarSign size={14} /> Salary Scale</label>
+                        <input name="salary" value={formData.salary} style={styles.input} placeholder="e.g. 100k - 150k BDT" onChange={handleChange} />
                     </div>
 
                     <div style={styles.inputGroup}>
-                        <label style={styles.label}>External Apply Link</label>
-                        <input name="link" value={formData.link} style={styles.input} placeholder="https://company.com/apply" onChange={handleChange} />
+                        <label style={styles.label}>Official Apply Link</label>
+                        <input name="link" value={formData.link} style={styles.input} placeholder="https://careers.company.com/..." onChange={handleChange} />
                     </div>
 
                     <div style={{ ...styles.inputGroup, gridColumn: '1 / span 2' }}>
-                        <label style={styles.label}>Job Description</label>
-                        <textarea name="description" value={formData.description} required style={{ ...styles.input, height: '120px', resize: 'none' }} placeholder="Specify requirements and responsibilities..." onChange={handleChange}></textarea>
+                        <label style={styles.label}>Job Description & Requirements</label>
+                        <textarea 
+                            name="description" 
+                            value={formData.description} 
+                            required 
+                            style={{ ...styles.input, height: '150px', resize: 'none' }} 
+                            placeholder="Paste the full job responsibilities and technical requirements here..."
+                            onChange={handleChange}
+                        />
                     </div>
 
                     <button type="submit" disabled={loading} style={{
                         ...styles.submitBtn,
-                        opacity: loading ? 0.7 : 1,
-                        cursor: loading ? 'not-allowed' : 'pointer'
+                        backgroundColor: loading ? '#94a3b8' : '#2563eb'
                     }}>
-                        {loading ? 'Processing...' : <><Send size={18} /> Deploy to Career Board</>}
+                        {loading ? 'Deploying to TalentBD...' : 'Publish Vacancy Now'}
                     </button>
                 </form>
             </div>
@@ -187,15 +207,16 @@ export default function AdminPostJob({ user, setView }) {
 
 const styles = {
     container: { maxWidth: '850px', margin: '0 auto', padding: '40px 20px' },
-    card: { background: '#fff', borderRadius: '28px', padding: '40px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0' },
-    header: { textAlign: 'center', marginBottom: '30px' },
-    iconCircle: { width: '56px', height: '56px', background: '#2563eb', borderRadius: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 15px', boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.3)' },
-    headerTitle: { fontSize: '22px', fontWeight: '800', margin: 0, color: '#1e293b', letterSpacing: '-0.5px' },
-    headerSubtitle: { color: '#64748b', fontSize: '13px', marginTop: '4px', fontWeight: '500' },
-    formGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' },
-    inputGroup: { display: 'flex', flexDirection: 'column', gap: '6px' },
-    label: { fontSize: '12px', fontWeight: '700', color: '#475569', display: 'flex', alignItems: 'center', gap: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' },
-    input: { padding: '13px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '14px', outline: 'none', transition: 'all 0.2s ease', color: '#1e293b' },
-    alert: { gridColumn: '1 / span 2', padding: '14px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px', fontSize: '14px', fontWeight: '700' },
-    submitBtn: { gridColumn: '1 / span 2', background: '#2563eb', color: '#fff', padding: '16px', borderRadius: '12px', border: 'none', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '10px', transition: 'transform 0.1s active' }
+    card: { background: '#fff', borderRadius: '32px', padding: 'clamp(20px, 5vw, 40px)', boxShadow: '0 20px 40px -12px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' },
+    header: { textAlign: 'center', marginBottom: '35px' },
+    iconCircle: { width: '50px', height: '50px', background: '#2563eb', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 15px' },
+    headerTitle: { fontSize: '22px', fontWeight: '900', margin: 0, color: '#0f172a' },
+    headerSubtitle: { color: '#64748b', fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '5px' },
+    formGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' },
+    inputGroup: { display: 'flex', flexDirection: 'column', gap: '8px' },
+    label: { fontSize: '11px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' },
+    input: { padding: '14px', borderRadius: '14px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '14px', outline: 'none', transition: '0.2s', fontWeight: '600' },
+    select: { padding: '14px', borderRadius: '14px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '14px', outline: 'none', appearance: 'none', fontWeight: '600' },
+    alert: { gridColumn: '1 / -1', padding: '14px', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' },
+    submitBtn: { gridColumn: '1 / -1', color: '#fff', padding: '18px', borderRadius: '16px', border: 'none', fontWeight: '900', fontSize: '16px', cursor: 'pointer', transition: '0.3s', marginTop: '10px' }
 };

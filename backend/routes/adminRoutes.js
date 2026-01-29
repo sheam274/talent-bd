@@ -4,42 +4,47 @@ const Job = require('../models/Job');
 const Category = require('../models/Category');
 const Course = require('../models/Course'); 
 
-// --- 1. DASHBOARD ANALYTICS (The Heart of the Panel) ---
-router.get('/learning-hub', async (req, res) => {
+/**
+ * 1. DASHBOARD ANALYTICS
+ * Provides a high-level overview of the ecosystem's health.
+ */
+router.get('/stats', async (req, res) => {
     try {
-        // Parallel execution for maximum performance in 2026
+        // Parallel execution for maximum performance (2026 Engine Standard)
         const [courseCount, jobCount, catCount] = await Promise.all([
-            Course.countDocuments({ isActive: { $ne: false } }),
-            Job.countDocuments({ isActive: { $ne: false } }),
-            Category.countDocuments({ isActive: { $ne: false } })
+            Course.countDocuments({ isActive: true }),
+            Job.countDocuments({ isActive: true }),
+            Category.countDocuments({ isActive: true })
         ]);
 
         res.json({ 
             success: true, 
             stats: {
-                totalCourses: courseCount || 0,
-                totalJobs: jobCount || 0,
-                totalCategories: catCount || 0
+                totalCourses: courseCount,
+                totalJobs: jobCount,
+                totalCategories: catCount
             }
         });
     } catch (err) {
-        res.status(500).json({ success: false, error: "Stats sync failed" });
+        res.status(500).json({ success: false, error: "Analytics sync failed" });
     }
 });
 
-// --- 2. CATEGORY ARCHITECT ---
+/**
+ * 2. CATEGORY MANAGEMENT
+ * Handles the creation and retrieval of taxonomy tags.
+ */
 router.get('/categories', async (req, res) => {
     try {
         const { group } = req.query; 
-        let filter = { isActive: { $ne: false } };
+        let filter = { isActive: true };
         
-        // Sanitize group input
-        if (group && !['undefined', 'null', ''].includes(String(group))) {
+        if (group && group !== 'all') {
             filter.group = group.toLowerCase().trim();
         }
 
         const categories = await Category.find(filter).sort({ priority: -1, name: 1 });
-        res.json({ success: true, categories: categories || [] });
+        res.json({ success: true, categories });
     } catch (err) {
         res.status(500).json({ success: false, error: "Category fetch failed" });
     }
@@ -47,7 +52,7 @@ router.get('/categories', async (req, res) => {
 
 router.post('/categories', async (req, res) => {
     try {
-        // Check for duplicates within the same group
+        // Enforce uniqueness within the group
         const existing = await Category.findOne({ 
             name: req.body.name, 
             group: req.body.group 
@@ -63,22 +68,24 @@ router.post('/categories', async (req, res) => {
         });
         res.status(201).json({ success: true, category });
     } catch (err) {
-        res.status(400).json({ success: false, error: "Validation failed" });
+        res.status(400).json({ success: false, error: err.message || "Validation failed" });
     }
 });
 
-// --- 3. WORLDWIDE JOB DEPLOYMENT ---
+/**
+ * 3. JOB DEPLOYMENT
+ * Converts form data into indexed job records with category references.
+ */
 router.post('/jobs', async (req, res) => {
     try {
         const { location, category } = req.body;
 
-        // Logic: Enforce Worldwide/Remote flags for the 2026 Global Board
+        // Auto-detect Remote/Worldwide status
         const isRemoteJob = 
             req.body.isRemote || 
-            location?.toLowerCase().includes('remote') || 
-            location?.toLowerCase().includes('worldwide');
+            /remote|worldwide|anywhere/i.test(location);
 
-        // Logic: Link the job to a Category Object ID for relational integrity
+        // Map Category Name to ID for relational integrity
         const categoryDoc = await Category.findOne({ name: category, group: 'job' });
 
         const jobData = {
@@ -87,7 +94,7 @@ router.post('/jobs', async (req, res) => {
             isRemote: isRemoteJob,
             categoryRef: categoryDoc ? categoryDoc._id : null,
             isActive: true,
-            // Default deadline: 30 days from now if not specified
+            // Default 30-day deadline if none provided
             deadline: req.body.deadline ? new Date(req.body.deadline) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
         };
 
@@ -102,10 +109,12 @@ router.post('/jobs', async (req, res) => {
     }
 });
 
-// --- 4. COURSE DEPLOYMENT ---
+/**
+ * 4. COURSE ARCHITECT
+ * Deploys new video modules with attached quiz logic.
+ */
 router.post('/courses', async (req, res) => {
     try {
-        // Find categoryRef for Courses too
         const categoryDoc = await Category.findOne({ name: req.body.category, group: 'learning' });
         
         const course = await Course.create({ 
@@ -119,28 +128,37 @@ router.post('/courses', async (req, res) => {
     }
 });
 
-// --- 5. UNIVERSAL SOFT-DELETE ARCHIVE ---
-
-router.patch('/archive/:type/:id', async (req, res) => {
+/**
+ * 5. UNIVERSAL ARCHIVE SYSTEM (Soft Delete)
+ * Uses a dynamic parameter to archive Jobs, Courses, or Categories.
+ */
+router.delete('/archive/:type/:id', async (req, res) => {
     try {
         const { type, id } = req.params;
         const Models = { job: Job, course: Course, category: Category };
         const TargetModel = Models[type.toLowerCase()];
         
-        if (!TargetModel) return res.status(404).json({ error: "Invalid model type" });
+        if (!TargetModel) {
+            return res.status(404).json({ success: false, error: "Invalid entity type" });
+        }
 
+        // Soft delete: Update isActive to false instead of deleting record
         const updated = await TargetModel.findByIdAndUpdate(
             id, 
             { isActive: false }, 
             { new: true }
         );
+
+        if (!updated) {
+            return res.status(404).json({ success: false, error: "Document not found" });
+        }
         
         res.json({ 
             success: true, 
-            message: `${type.toUpperCase()} moved to archives.` 
+            message: `${type.toUpperCase()} archived successfully.` 
         });
     } catch (err) {
-        res.status(400).json({ error: "Archive operation failed" });
+        res.status(400).json({ success: false, error: "Archive operation failed" });
     }
 });
 

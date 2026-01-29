@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const morgan = require('morgan'); 
 const helmet = require('helmet'); 
+const Category = require('./models/Category'); // Required for Seeding
 
 const app = express();
 
@@ -20,23 +21,21 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 /**
- * CORS Dynamic Configuration
- * Includes your specific Vercel URL and local development environments.
+ * 2. CORS DYNAMIC CONFIGURATION
  */
 const allowedOrigins = [
-    "https://talent-bd-s.vercel.app", // Your NEW specific Vercel URL
-    "https://talent-bd-13.vercel.app", // Your secondary Vercel URL
+    "https://talent-bd-s.vercel.app", 
+    "https://talent-bd-13.vercel.app", 
     "http://localhost:3000", 
     "http://localhost:5173", 
     "http://127.0.0.1:3000", 
     "http://127.0.0.1:5173",
-    "http://192.168.0.106:3000" // Your Network IP for Mobile Testing
+    "http://192.168.0.106:3000",
+    "http://192.168.0.106:5173" // Vite default for mobile testing
 ];
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps, Postman, or curl)
-        // Or if the origin is in our allowed list
         if (!origin || allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
         } else {
@@ -47,23 +46,39 @@ app.use(cors({
     credentials: true
 }));
 
-/**
- * 2. BODY PARSING
- */
 app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
 /**
- * 3. DATABASE CONNECTION
+ * 3. DATABASE & AUTO-SEEDING ENGINE
+ * Ensures Industry Sectors exist even on a fresh database.
  */
-const MONGO_URI = process.env.MONGO_URI;
+const seedSectors = async () => {
+    try {
+        const count = await Category.countDocuments();
+        if (count === 0) {
+            const prebuiltSectors = [
+                { name: 'Government', group: 'job', icon: 'Shield', color: '#0f172a', priority: 10 },
+                { name: 'Banking', group: 'job', icon: 'DollarSign', color: '#10b981', priority: 9 },
+                { name: 'Software', group: 'job', icon: 'Code', color: '#2563eb', priority: 8 },
+                { name: 'Education', group: 'job', icon: 'BookOpen', color: '#f59e0b', priority: 7 },
+                { name: 'Marketing', group: 'job', icon: 'Megaphone', color: '#d946ef', priority: 6 }
+            ];
+            await Category.insertMany(prebuiltSectors);
+            console.log("⭐ TalentBD Taxonomy Seeded: Prebuilt sectors deployed.");
+        }
+    } catch (err) {
+        console.error("⚠️ Seeding Warning:", err.message);
+    }
+};
 
 mongoose.set('strictQuery', false);
-mongoose.connect(MONGO_URI)
-.then(() => console.log('✅ TalentBD Cloud Database: Active and Synced'))
-.catch(err => {
-    console.error('❌ MongoDB Connection Failure:', err.message);
-});
+mongoose.connect(process.env.MONGO_URI)
+.then(() => {
+    console.log('✅ TalentBD Cloud Database: Active and Synced');
+    seedSectors(); // Trigger seeding on successful connection
+})
+.catch(err => console.error('❌ MongoDB Connection Failure:', err.message));
 
 /**
  * 4. ROUTE ARCHITECTURE
@@ -78,50 +93,55 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/admin', adminRoutes); 
 
-// Taxonomy Sync Route
-const Category = require('./models/Category'); 
+// FIXED TAXONOMY ROUTE: Explicitly defined for the Industry Hub
 app.get('/api/categories', async (req, res) => {
     try {
-        const group = req.query.group || 'job';
-        const categories = await Category.find({ group });
-        res.status(200).json({ categories });
+        const { group } = req.query;
+        const filter = group ? { group: group.toLowerCase(), isActive: true } : { isActive: true };
+        const categories = await Category.find(filter).sort({ priority: -1, name: 1 });
+        
+        res.status(200).json({ 
+            success: true,
+            categories: categories // Ensure this matches frontend .map()
+        });
     } catch (err) {
-        res.status(500).json({ error: "Failed to fetch taxonomy" });
+        res.status(500).json({ success: false, error: "Taxonomy sync failed" });
     }
 });
 
 /**
- * 5. SYSTEM HEALTH & MONITORING
+ * 5. SYSTEM MONITORING
  */
-app.get('/', (req, res) => {
-    res.send('TalentBD 2026 Engine API is Running...');
-});
+app.get('/', (req, res) => res.send('TalentBD 2026 Engine API is Running...'));
 
 app.get('/api/health', (req, res) => {
     const states = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
     res.status(200).json({ 
         status: 'Online', 
-        uptime: `${Math.floor(process.uptime())}s`,
         database: states[mongoose.connection.readyState],
-        timestamp: new Date().toISOString()
-    });
-});
-
-app.use((req, res) => {
-    res.status(404).json({ 
-        success: false, 
-        message: `Endpoint ${req.originalUrl} not found.` 
+        timestamp: new Date()
     });
 });
 
 /**
  * 6. GLOBAL ERROR HANDLING
  */
+app.use((req, res) => {
+    res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found.` });
+});
+
 app.use((err, req, res, next) => {
-    const statusCode = err.status || 500;
-    res.status(statusCode).json({ 
+    let error = { ...err };
+    error.message = err.message;
+
+    if (err.code === 11000) {
+        error.message = `Duplicate entry found for: ${Object.keys(err.keyValue)}`;
+        error.status = 400;
+    }
+
+    res.status(error.status || 500).json({ 
         success: false, 
-        error: err.message || "Internal Server Error"
+        error: error.message || "Internal Server Error"
     });
 });
 
@@ -129,10 +149,6 @@ app.use((err, req, res, next) => {
  * 7. SERVER INITIALIZATION
  */
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 TalentBD 2026 Engine Live on Port: ${PORT}`);
-});
-
-process.on('unhandledRejection', (err) => {
-    console.error(`🔴 Unhandled System Rejection: ${err.message}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 TalentBD Engine Live on Port: ${PORT}`);
 });

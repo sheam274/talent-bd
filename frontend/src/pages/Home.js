@@ -1,9 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { 
     FileText, Briefcase, Zap, 
     ArrowRight, Layers, Plus, Trash2, Rocket
 } from 'lucide-react';
+
+// Dynamic API detection for production/dev
+const API_BASE = window.location.hostname === 'localhost' 
+    ? "http://localhost:5000/api" 
+    : "https://talent-bd-backend.onrender.com/api";
 
 export default function Home({ user, setView }) {
     const [file, setFile] = useState(null);
@@ -18,48 +23,67 @@ export default function Home({ user, setView }) {
     const [catGroup, setCatGroup] = useState('job'); 
     const isAdmin = user?.role === 'admin';
 
+    // --- SYNCED CATEGORY MANAGEMENT (FIXED FETCH LOGIC) ---
+    const fetchCategories = useCallback(async () => {
+        try {
+            const res = await axios.get(`${API_BASE}/categories`);
+            
+            // Robust check for data: Handles {categories: []}, {data: []}, or just []
+            const rawData = res.data;
+            let fetchedCats = [];
+
+            if (rawData.categories && Array.isArray(rawData.categories)) {
+                fetchedCats = rawData.categories;
+            } else if (rawData.data && Array.isArray(rawData.data)) {
+                fetchedCats = rawData.data;
+            } else if (Array.isArray(rawData)) {
+                fetchedCats = rawData;
+            }
+
+            setCategories(fetchedCats);
+        } catch (err) { 
+            console.error("❌ API Fetch Error:", err);
+            setCategories([]); 
+        }
+    }, []);
+
     useEffect(() => {
         const handleResize = () => setWindowWidth(window.innerWidth);
         window.addEventListener('resize', handleResize);
-        if (isAdmin) fetchCategories();
+        
+        // Fetch categories for everyone (to power search/UI) but especially admins
+        fetchCategories();
+        
         return () => window.removeEventListener('resize', handleResize);
-    }, [isAdmin]);
-
-    // --- SYNCED CATEGORY MANAGEMENT ---
-    const fetchCategories = async () => {
-        try {
-            const res = await axios.get('http://localhost:5000/api/categories');
-            // Check for categories array in common response patterns
-            const fetchedCats = res.data?.categories || res.data || [];
-            setCategories(Array.isArray(fetchedCats) ? fetchedCats : []);
-        } catch (err) { 
-            console.warn("Offline: Using empty category cache."); 
-            setCategories([]); 
-        }
-    };
+    }, [fetchCategories]);
 
     const addCategory = async () => {
-        if (!newCat || !user?.token) return;
+        if (!newCat.trim() || !user?.token) return;
         try {
-            await axios.post('http://localhost:5000/api/admin/categories', 
-                { name: newCat, group: catGroup }, 
+            const res = await axios.post(`${API_BASE}/admin/categories`, 
+                { name: newCat.trim(), group: catGroup }, 
                 { headers: { Authorization: `Bearer ${user.token}` } }
             );
-            setNewCat('');
-            fetchCategories();
+            if (res.data.success || res.status === 201 || res.status === 200) {
+                setNewCat('');
+                fetchCategories();
+            }
         } catch (err) { 
-            alert("Sync Error: Please verify admin permissions."); 
+            console.error("Add Error:", err);
+            alert("Administrative Authorization Required for Taxonomy changes."); 
         }
     };
 
     const deleteCategory = async (id) => {
-        if (!user?.token) return;
+        if (!user?.token || !window.confirm("Delete this sector?")) return;
         try {
-            await axios.delete(`http://localhost:5000/api/admin/categories/${id}`, {
+            await axios.delete(`${API_BASE}/admin/categories/${id}`, {
                 headers: { Authorization: `Bearer ${user.token}` }
             });
             fetchCategories();
-        } catch (err) { console.error("Deletion failed:", err); }
+        } catch (err) { 
+            console.error("Deletion failed:", err); 
+        }
     };
 
     const isMobile = windowWidth < 768;
@@ -69,7 +93,6 @@ export default function Home({ user, setView }) {
         e.preventDefault();
         if (!file || !jobDesc) return alert("Please upload a resume and paste requirements!");
         setLoading(true);
-        // Simulate AI Entity Extraction
         setTimeout(() => {
             setScore(Math.floor(Math.random() * (95 - 72 + 1)) + 72);
             setLoading(false);
@@ -80,7 +103,7 @@ export default function Home({ user, setView }) {
         <div style={styles.heroWrapper}>
             <div style={styles.container}>
                 
-                {/* 1. ADMIN CATEGORY ARCHITECT */}
+                {/* 1. ADMIN TAXONOMY INTERFACE */}
                 {isAdmin && (
                     <div style={styles.adminPanel}>
                         <div style={styles.adminHeader}>
@@ -90,7 +113,7 @@ export default function Home({ user, setView }) {
                         <div style={styles.adminControls}>
                             <input 
                                 style={styles.adminInput} 
-                                placeholder="Add sector (e.g. Fintech, AI)..." 
+                                placeholder="New Sector (e.g. Fintech, AI)..." 
                                 value={newCat}
                                 onChange={(e) => setNewCat(e.target.value)}
                             />
@@ -102,16 +125,24 @@ export default function Home({ user, setView }) {
                                 <option value="job">Gigs Sector</option>
                                 <option value="learning">Skill Path</option>
                             </select>
-                            <button onClick={addCategory} style={styles.adminAddBtn}><Plus size={16} /> Add</button>
+                            <button onClick={addCategory} style={styles.adminAddBtn}><Plus size={16} /> Deploy</button>
                         </div>
                         <div style={styles.catGrid}>
-                            {categories.map(c => (
-                                <div key={c._id || c.name} style={styles.catBadge}>
-                                    <span style={styles.catGroupTag}>{c.group}</span>
+                            {categories.length > 0 ? categories.map(c => (
+                                <div key={c._id || c.name} style={{
+                                    ...styles.catBadge,
+                                    borderColor: c.group === 'job' ? '#e2e8f0' : '#dcfce7'
+                                }}>
+                                    <span style={{
+                                        ...styles.catGroupTag,
+                                        color: c.group === 'job' ? '#64748b' : '#16a34a'
+                                    }}>{c.group}</span>
                                     {c.name} 
                                     <Trash2 size={12} style={styles.trash} onClick={() => deleteCategory(c._id)} />
                                 </div>
-                            ))}
+                            )) : (
+                                <p style={{fontSize: '12px', color: '#94a3b8'}}>No categories deployed in database.</p>
+                            )}
                         </div>
                     </div>
                 )}
@@ -122,7 +153,7 @@ export default function Home({ user, setView }) {
                     gap: isMobile ? '40px' : '80px',
                 }}>
                     
-                    {/* LEFT SIDE: Positioning */}
+                    {/* LEFT SIDE */}
                     <div style={{...styles.textSide, textAlign: isTablet ? 'center' : 'left'}}>
                         <div style={{...styles.pill, margin: isTablet ? '0 auto 24px' : '0 0 24px 0'}}>
                             <Rocket size={14} /> BD'S #1 AI TALENT HUB 2026
@@ -133,7 +164,7 @@ export default function Home({ user, setView }) {
                         </h1>
                         
                         <p style={{...styles.subText, margin: isTablet ? '0 auto 40px' : '0 0 45px 0'}}>
-                            Match your technical DNA with global high-paying gigs and local industry standards. Verified skills lead to verified earnings.
+                            Match your technical DNA with global high-paying gigs and local industry standards.
                         </p>
                         
                         <div style={{...styles.buttonGroup, justifyContent: isTablet ? 'center' : 'flex-start'}}>
@@ -146,7 +177,7 @@ export default function Home({ user, setView }) {
                         </div>
                     </div>
 
-                    {/* RIGHT SIDE: Interactive Tools */}
+                    {/* RIGHT SIDE */}
                     <div style={styles.cardSide}>
                         <div style={styles.toolCard}>
                             <div style={styles.cardHeader}>
@@ -165,7 +196,7 @@ export default function Home({ user, setView }) {
                                     </div>
                                     <textarea 
                                         style={styles.miniArea} 
-                                        placeholder="Paste Job Description..." 
+                                        placeholder="Paste Job Requirements..." 
                                         value={jobDesc}
                                         onChange={(e) => setJobDesc(e.target.value)}
                                         required
@@ -198,7 +229,6 @@ export default function Home({ user, setView }) {
                             </div>
                         </div>
                     </div>
-
                 </div>
             </div>
         </div>
@@ -216,31 +246,31 @@ const styles = {
     adminSelect: { padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#fff', outline: 'none', cursor: 'pointer' },
     adminAddBtn: { background: '#2563eb', color: '#fff', border: 'none', padding: '0 24px', borderRadius: '12px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' },
     catGrid: { display: 'flex', flexWrap: 'wrap', gap: '10px' },
-    catBadge: { background: '#fff', padding: '8px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: '750', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' },
+    catBadge: { background: '#fff', padding: '8px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: '750', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '10px' },
     catGroupTag: { opacity: 0.5, fontSize: '9px', textTransform: 'uppercase', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' },
-    trash: { cursor: 'pointer', color: '#ef4444', transition: '0.2s' },
+    trash: { cursor: 'pointer', color: '#ef4444' },
     heroGrid: { display: 'grid', alignItems: 'center' },
     pill: { background: '#eff6ff', color: '#2563eb', padding: '8px 16px', borderRadius: '50px', fontSize: '12px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px', width: 'fit-content', border: '1px solid #dbeafe' },
     bigText: { fontWeight: '950', lineHeight: '1.1', color: '#0f172a', marginBottom: '25px', letterSpacing: '-0.04em' },
     subText: { color: '#64748b', fontSize: '1.1rem', lineHeight: '1.6', maxWidth: '550px' },
     buttonGroup: { display: 'flex', gap: '15px', flexWrap: 'wrap' },
-    mainBtn: { background: '#2563eb', color: '#fff', border: 'none', padding: '18px 32px', borderRadius: '16px', fontSize: '16px', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 10px 20px -3px rgba(37, 99, 235, 0.2)' },
+    mainBtn: { background: '#2563eb', color: '#fff', border: 'none', padding: '18px 32px', borderRadius: '16px', fontSize: '16px', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' },
     secondaryBtn: { background: '#fff', color: '#0f172a', border: '1px solid #e2e8f0', padding: '18px 32px', borderRadius: '16px', fontSize: '16px', fontWeight: '800', cursor: 'pointer' },
     cardSide: { display: 'flex', flexDirection: 'column', gap: '20px' },
     toolCard: { background: '#fff', padding: '30px', borderRadius: '32px', border: '1px solid #e2e8f0', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.05)' },
     cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
     cardTitle: { margin: 0, fontSize: '18px', fontWeight: '900' },
     liveIndicator: { background: '#f0fdf4', color: '#16a34a', fontSize: '9px', fontWeight: '900', padding: '4px 8px', borderRadius: '6px' },
-    uploadBox: { border: '2px dashed #cbd5e1', padding: '24px', borderRadius: '20px', textAlign: 'center', position: 'relative', marginBottom: '15px', transition: '0.3s' },
+    uploadBox: { border: '2px dashed #cbd5e1', padding: '24px', borderRadius: '20px', textAlign: 'center', position: 'relative', marginBottom: '15px' },
     hiddenInput: { position: 'absolute', opacity: 0, width: '100%', height: '100%', top: 0, left: 0, cursor: 'pointer' },
     uploadText: { margin: '8px 0 0', fontSize: '13px', fontWeight: '700' },
     miniArea: { width: '100%', height: '90px', padding: '15px', borderRadius: '15px', border: '1px solid #e2e8f0', background: '#f8fafc', outline: 'none', resize: 'none', fontSize: '14px' },
     actionBtn: { width: '100%', background: '#0f172a', color: '#fff', border: 'none', padding: '18px', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', marginTop: '10px' },
-    architectCard: { background: '#0f172a', padding: '24px', borderRadius: '28px', cursor: 'pointer', transition: '0.3s' },
+    architectCard: { background: '#0f172a', padding: '24px', borderRadius: '28px', cursor: 'pointer' },
     architectContent: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
     architectTitle: { margin: 0, color: '#fff', fontSize: '18px', fontWeight: '900' },
     architectSub: { margin: 0, color: 'rgba(255,255,255,0.5)', fontSize: '12px' },
-    resultView: { textAlign: 'center', padding: '10px 0' },
+    resultView: { textAlign: 'center' },
     scoreCircle: { width: '90px', height: '90px', borderRadius: '50%', background: '#f0fdf4', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 15px', border: '6px solid #dcfce7' },
     resultSub: { fontSize: '13px', color: '#64748b', marginBottom: '20px' },
     resultActions: { display: 'flex', gap: '10px', justifyContent: 'center' },

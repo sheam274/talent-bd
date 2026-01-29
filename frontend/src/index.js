@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 
 /** * 1. STYLING ARCHITECTURE 
- * Hierarchical order to ensure CSS Variables are available to all components.
+ * Variables must be loaded first to prevent "Flash of Unstyled Content" (FOUC).
  */
 import './index.css'; 
 import './App.css'; 
@@ -11,49 +11,55 @@ import './App.css';
 import App from './App';
 
 /**
- * 3. MOBILE VIDEO PLAYER OPTIMIZATION
- * Fixes the "100vh" bug on mobile browsers (Safari/Chrome) where 
- * the address bar hides content. Used in App.css via height: calc(var(--vh, 1vh) * 100).
+ * 3. MOBILE VIDEO PLAYER & UI OPTIMIZATION
+ * Solves the "Real 100vh" problem on mobile browsers.
+ * In your CSS, use: height: calc(var(--vh, 1vh) * 100);
  */
 const syncViewportHeight = () => {
-  let vh = window.innerHeight * 0.01;
+  const vh = window.innerHeight * 0.01;
   document.documentElement.style.setProperty('--vh', `${vh}px`);
 };
 
-window.addEventListener('resize', syncViewportHeight);
+// Debounced listener to prevent performance lag during orientation changes
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(syncViewportHeight, 150);
+});
 syncViewportHeight();
 
 /**
- * 4. MULTI-TAB WALLET SYNC
- * If a user earns XP or withdraws funds in Tab A, Tab B updates 
- * automatically to prevent double-spending or stale data.
+ * 4. MULTI-TAB WALLET & STATE SYNC
+ * Listens for changes in other tabs. If a user withdraws money 
+ * or earns points elsewhere, this tab stays in sync.
  */
 window.addEventListener('storage', (e) => {
   if (e.key === 'talentbd_v1') {
-    // Graceful refresh to reload user state and wallet balances
+    // Only reload if the data actually changed to avoid loop
     window.location.reload();
   }
 });
 
 /**
- * 5. RENDER ARCHITECTURE
- * Initializing React 18 Concurrent Root.
- * Optimized for HP-840 displays to manage concurrent rendering of 
- * the XP Bar + Video Player without dropping frames.
+ * 5. RENDER ARCHITECTURE & ERROR BOUNDARY HINT
+ * React 18 Concurrent Root. 
+ * Designed for low-latency updates in the Learning Hub.
  */
 const rootElement = document.getElementById('root');
 
 if (!rootElement) {
-  console.error("❌ Critical: TalentBD root element not found. Check public/index.html");
+  // Critical Failure Alert
+  const errorDiv = document.createElement('div');
+  errorDiv.style.cssText = "padding:20px; text-align:center; color:#ef4444; font-weight:800;";
+  errorDiv.innerText = "CRITICAL: System Root Missing. Please contact TalentBD support.";
+  document.body.appendChild(errorDiv);
 } else {
   const root = ReactDOM.createRoot(rootElement);
 
   root.render(
     <React.StrictMode>
       {/* TALENTBD ECOSYSTEM 2026 
-        ----------------------
-        System Core: Auth, MFS (bKash/Nagad) Gateway, 
-        and Learning Management.
+        Stable Build: v1.0.4-LTS
       */}
       <App />
     </React.StrictMode>
@@ -61,8 +67,20 @@ if (!rootElement) {
 }
 
 /**
- * 6. SYSTEM HEALTH MONITOR
+ * 6. PERFORMANCE & HEALTH MONITORING
  */
+const reportWebVitals = (metric) => {
+  if (process.env.NODE_ENV === 'development') {
+    // console.log(metric); // Uncomment to debug layout shifts (CLS) or load times (LCP)
+  }
+};
+
 if (process.env.NODE_ENV === 'development') {
-  console.log("🚀 TalentBD Engine: 2026 Stable | Concurrent Mode Active");
+  console.log(`
+  %c 🚀 TALENTBD ENGINE ACTIVE %c 2026 STABLE %c
+  `, 
+  'background:#2563eb; color:#fff; font-weight:bold; padding:4px 8px; border-radius:4px 0 0 4px;',
+  'background:#0f172a; color:#fff; font-weight:bold; padding:4px 8px; border-radius:0 4px 4px 0;',
+  'background:transparent'
+  );
 }

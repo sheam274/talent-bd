@@ -3,19 +3,24 @@ const mongoose = require('mongoose');
 const jobSchema = new mongoose.Schema({
     title: { type: String, required: [true, 'Job title is required'], trim: true },
     company: { type: String, required: [true, 'Company name is required'], trim: true },
-    companyLogo: { type: String, default: 'https://via.placeholder.com/150?text=Company+Logo' },
+    companyLogo: { 
+        type: String, 
+        default: 'https://via.placeholder.com/150?text=Company+Logo' 
+    },
     
-    // Using string for UI and ObjectId for relational integrity
+    // UI Label and DB Reference for high-performance filtering
     category: { type: String, required: true, index: true }, 
-    categoryRef: { type: mongoose.Schema.Types.ObjectId, ref: 'Category' },
+    categoryRef: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', index: true },
     
     vacancy: { type: Number, default: 1 },
     experience: { type: String, default: 'At least 1-2 years' },
     
     jobType: {
         type: String,
-        // Match exactly what your jobRoutes.js is looking for
-        enum: ['full-time', 'part-time', 'contract', 'internship', 'freelance'],
+        enum: {
+            values: ['full-time', 'part-time', 'contract', 'internship', 'freelance'],
+            message: '{VALUE} is not a valid job type'
+        },
         default: 'full-time',
         lowercase: true,
         trim: true
@@ -24,13 +29,14 @@ const jobSchema = new mongoose.Schema({
     location: { type: String, default: 'Worldwide', index: true },
     isRemote: { type: Boolean, default: true, index: true }, 
     salary: { type: String, default: 'Negotiable' },
-    description: { type: String, required: true }, 
+    description: { type: String, required: [true, 'Job description is mandatory'] }, 
     
+    // Search optimization fields
     tags: { type: [String], lowercase: true, default: [], index: true },
     requiredSkills: { type: [String], lowercase: true, default: [], index: true },
     
     link: { type: String, trim: true }, 
-    deadline: { type: Date, required: true, index: true },
+    deadline: { type: Date, required: [true, 'Application deadline is required'], index: true },
     isFeatured: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true, index: true },
 
@@ -44,57 +50,59 @@ const jobSchema = new mongoose.Schema({
     toObject: { virtuals: true }
 });
 
-/**
- * --- 1. DATA NORMALIZATION HOOK ---
- * Fixes data before it hits the DB to ensure filters find it.
- */
+// --- 1. PRE-VALIDATION: DATA NORMALIZATION ---
 jobSchema.pre('validate', function(next) {
-    // 1. Force lowercase jobType to match query filters
+    // Standardize JobType format (e.g., "Full Time" -> "full-time")
     if (this.jobType) {
-        this.jobType = this.jobType.toLowerCase().replace(' ', '-');
+        this.jobType = this.jobType.toLowerCase().trim().replace(/\s+/g, '-');
     }
 
-    // 2. Ensure Remote logic is synced
+    // Auto-detect Remote status from location string
     const loc = (this.location || '').toLowerCase();
-    if (loc.includes('remote') || loc.includes('worldwide')) {
+    if (loc.includes('remote') || loc.includes('worldwide') || loc.includes('anywhere')) {
         this.isRemote = true;
     }
     
     next();
 });
 
-// --- 2. SEARCH ENGINE HOOK ---
+// --- 2. PRE-SAVE: SEARCH ENGINE TAGGING ---
 jobSchema.pre('save', function(next) {
     const titleWords = this.title ? this.title.toLowerCase().split(/[\s,.-]+/) : [];
     const categoryWords = this.category ? this.category.toLowerCase().split(/[\s,.-]+/) : [];
     const content = `${this.description || ''} ${this.title || ''}`.toLowerCase();
     
+    // 2026 Tech Keyword Extractor
     const techStack = [
         'web', 'react', 'node', 'mern', 'frontend', 'backend', 'developer', 
-        'javascript', 'python', 'php', 'sql', 'mongodb', 'aws'
+        'javascript', 'python', 'php', 'sql', 'mongodb', 'aws', 'docker', 'ui', 'ux'
     ];
     
     const autoTags = techStack.filter(word => content.includes(word));
-    const combined = [...new Set([...this.tags, ...titleWords, ...categoryWords, ...autoTags])];
     
+    // Merge user tags, title words, category, and tech stack into one unique array
+    const combined = [...new Set([...(this.tags || []), ...titleWords, ...categoryWords, ...autoTags])];
+    
+    // Filter out short/useless words
     this.tags = combined.filter(t => t && t.length > 2);
     next();
 });
 
-// --- 3. 2026 LIVE VIRTUALS ---
+// --- 3. DYNAMIC VIRTUALS ---
+// Returns number of days until the job expires
 jobSchema.virtual('daysRemaining').get(function() {
     if (!this.deadline) return 0;
     const diff = new Date(this.deadline).getTime() - Date.now();
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 });
 
+// Automatically checks if the job should be visible to users
 jobSchema.virtual('isLive').get(function() {
     const now = new Date();
-    now.setHours(0, 0, 0, 0); // Reset time for date-only comparison
     return this.isActive && this.deadline && new Date(this.deadline) >= now;
 });
 
-// --- 4. TEXT INDEX ---
+// --- 4. PERFORMANCE TEXT INDEX ---
 jobSchema.index({ 
     title: 'text', 
     category: 'text', 

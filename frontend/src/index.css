@@ -1,30 +1,37 @@
-/* --- DESIGN SYSTEM & DYNAMIC TOKENS --- */
+/* --- 1. DESIGN SYSTEM & DYNAMIC TOKENS --- */
 :root {
+  /* Brand Palette */
   --primary: #2563eb;
   --primary-hover: #1d4ed8;
   --primary-glass: rgba(37, 99, 235, 0.1);
+  --secondary: #0f172a;
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
+  
+  /* Surface Colors */
   --bg-main: #f8fafc;
+  --bg-card: #ffffff;
   --text-main: #0f172a;
   --text-muted: #64748b;
   --border: #e2e8f0;
   
-  /* Modern Border Radii */
+  /* 2026 Modern Geometry */
   --radius-lg: 1.25rem; /* 20px */
   --radius-md: 0.75rem; /* 12px */
   --radius-xl: 2.5rem;  /* 40px */
+  --radius-pill: 50px;
   
-  /* Elevation & Glassmorphism */
+  /* Depth & FX */
   --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
   --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
-  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-bg: rgba(255, 255, 255, 0.85);
   --nav-height: 80px;
+  --sidebar-width: 280px;
   --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* --- RESET & HP-840 OPTIMIZATION --- */
+/* --- 2. RESET & HP-840 OPTIMIZATION --- */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -32,13 +39,14 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Fluid Typography for 14" HP Displays */
 html {
   font-size: 16px;
+  scroll-behavior: smooth;
 }
 
+/* Scale correction for 14" HP Displays (prevents UI from looking too bulky) */
 @media screen and (max-width: 1440px) {
-  html { font-size: 15px; } /* Slightly reduces scale for 14" laptop screens */
+  html { font-size: 15px; } 
 }
 
 body {
@@ -49,36 +57,47 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
+  min-height: 100vh;
 }
 
-/* --- LAYOUT ARCHITECTURE --- */
+/* --- 3. LAYOUT ARCHITECTURE --- */
 .container {
   width: 100%;
-  max-width: 1320px; 
+  max-width: 1400px; 
   margin: 0 auto;
-  padding: 0 clamp(1rem, 4vw, 2.5rem);
+  padding: 0 clamp(1rem, 5vw, 3rem);
 }
 
+/* FIXED: Industry Hub Sidebar Logic */
 .sidebar-layout {
   display: grid;
-  grid-template-columns: 280px 1fr;
-  gap: 30px;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  gap: 32px;
+  margin-top: 2rem;
   align-items: start;
+}
+
+.sticky-sidebar {
+  position: sticky;
+  top: calc(var(--nav-height) + 20px);
+  max-height: calc(100vh - var(--nav-height) - 40px);
+  overflow-y: auto;
+  padding-right: 8px; /* For custom scrollbar padding */
 }
 
 .grid-layout {
   display: grid;
   gap: 1.5rem;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
 }
 
-/* --- ADMIN & TAXONOMY UI --- */
+/* --- 4. INDUSTRY SECTORS & ADMIN UI --- */
 .admin-hub-card {
-  background: #ffffff;
+  background: var(--bg-card);
   border: 2px dashed var(--border);
   border-radius: var(--radius-lg);
   padding: 24px;
-  margin-bottom: 30px;
+  margin-bottom: 2rem;
   transition: var(--transition);
 }
 
@@ -87,97 +106,93 @@ body {
   background: var(--primary-glass);
 }
 
+/* Sector Pill - Fixed to handle both Jobs & Learning Hub */
 .category-pill {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: #ffffff;
-  border-radius: 50px;
-  font-size: 13px;
+  gap: 10px;
+  padding: 10px 20px;
+  background: var(--bg-card);
+  border-radius: var(--radius-pill);
+  font-size: 14px;
   font-weight: 700;
-  color: var(--text-main);
+  color: var(--text-muted);
   border: 1px solid var(--border);
   cursor: pointer;
   transition: var(--transition);
+  white-space: nowrap;
 }
 
-.category-pill:hover {
-  border-color: var(--danger);
-  color: var(--danger);
-  transform: scale(0.95);
+.category-pill.active {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+  box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.25);
 }
 
-/* --- TYPOGRAPHY & HEADINGS --- */
-h1, h2, h3, h4 {
-  font-weight: 900;
-  letter-spacing: -0.04em;
-  color: var(--text-main);
-  line-height: 1.2;
+.category-pill:hover:not(.active) {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-glass);
 }
 
-.hero-text {
-  font-size: clamp(2.2rem, 6vw, 4rem);
-  background: linear-gradient(135deg, #0f172a 0%, #2563eb 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  font-weight: 1000;
-}
-
-/* --- CARD SYSTEM --- */
+/* --- 5. COMPONENT SYSTEM --- */
 .card-modern {
-  background: #ffffff;
+  background: var(--bg-card);
   border-radius: var(--radius-xl);
   border: 1px solid var(--border);
-  padding: 1.5rem;
+  padding: 1.75rem;
   transition: var(--transition);
   box-shadow: var(--shadow-sm);
-  position: relative;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .card-modern:hover {
-  transform: translateY(-5px);
+  transform: translateY(-8px);
   box-shadow: var(--shadow-xl);
-  border-color: var(--primary);
+  border-color: var(--primary-glass);
 }
 
-.glass-panel {
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: var(--radius-lg);
+.hero-text {
+  font-size: clamp(2.5rem, 8vw, 4.5rem);
+  background: linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 1000;
+  letter-spacing: -0.05em;
+  line-height: 1.1;
 }
 
-/* --- INTERACTIVE ELEMENTS --- */
+/* --- 6. INTERACTIVE ELEMENTS --- */
 .btn-primary {
   background: var(--primary);
   color: white;
-  padding: 12px 24px;
+  padding: 14px 28px;
   border-radius: var(--radius-md);
-  font-weight: 750;
+  font-weight: 800;
   border: none;
   cursor: pointer;
   transition: var(--transition);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
+  font-family: inherit;
 }
 
-.btn-primary:hover {
-  background: var(--primary-hover);
-  transform: translateY(-1px);
+.btn-primary:active {
+  transform: scale(0.96);
 }
 
 .input-field {
   width: 100%;
-  padding: 14px;
+  padding: 16px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
-  background: #fcfdfe;
-  font-size: 14px;
+  background: #ffffff;
+  font-size: 15px;
+  font-family: inherit;
   transition: var(--transition);
 }
 
@@ -187,35 +202,51 @@ h1, h2, h3, h4 {
   box-shadow: 0 0 0 4px var(--primary-glass);
 }
 
-/* --- STATUS & BADGES --- */
+/* --- 7. UTILITIES & ANIMATIONS --- */
 .badge-verified {
   background: #f0fdf4;
   color: var(--success);
-  padding: 4px 10px;
-  border-radius: 50px;
-  font-size: 10px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
   font-weight: 900;
   text-transform: uppercase;
   border: 1px solid #bbf7d0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
-/* --- SCROLLBAR DESIGN --- */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: var(--bg-main); }
+/* Scrollbar Fixes */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
-/* --- MOBILE RESPONSIVITY --- */
+/* --- 8. MOBILE RESPONSIVITY --- */
 @media (max-width: 1024px) {
   .sidebar-layout {
     grid-template-columns: 1fr;
+    gap: 20px;
   }
+  
+  .sticky-sidebar {
+    position: relative;
+    top: 0;
+    max-height: none;
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 10px;
+    gap: 12px;
+  }
+  
+  .sticky-sidebar::-webkit-scrollbar { display: none; }
 }
 
 @media (max-width: 768px) {
+  .hero-text { font-size: 3rem; }
   .hide-on-mobile { display: none !important; }
-  body { padding-bottom: 70px; } /* Space for mobile nav */
 }
