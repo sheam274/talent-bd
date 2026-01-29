@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { motion, AnimatePresence } from 'framer-motion';
 import { 
-    Play, CheckCircle, AlertCircle, Award, ArrowRight, Trophy,
-    ShieldCheck, Smartphone, Monitor, Layers, Plus, Trash2, Settings
+    AlertCircle, Award, ArrowRight, Trophy,
+    ShieldCheck, Monitor, Plus, Trash2, Settings
 } from 'lucide-react';
 
 const VideoPlayer = ({ course, user, setView, onVerify }) => {
@@ -14,7 +13,7 @@ const VideoPlayer = ({ course, user, setView, onVerify }) => {
     const [error, setError] = useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 992);
     
-    // Admin State for Category Sync
+    // --- FIX 1: Initialize as empty array to prevent .map crashes ---
     const [categories, setCategories] = useState([]);
     const [newCat, setNewCat] = useState('');
     const isAdmin = user?.role === 'admin' || user?.email === 'admin@talentbd.com';
@@ -22,28 +21,46 @@ const VideoPlayer = ({ course, user, setView, onVerify }) => {
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 992);
         window.addEventListener('resize', handleResize);
+        
+        // --- FIX 2: Only fetch if Admin ---
         if (isAdmin) fetchCategories();
+        
         return () => window.removeEventListener('resize', handleResize);
     }, [isAdmin]);
 
-    // --- ADMIN CATEGORY SYNC ---
     const fetchCategories = async () => {
         try {
+            // Updated to use the corrected endpoint structure
             const res = await axios.get('http://localhost:5000/api/categories');
-            setCategories(res.data);
-        } catch (err) { console.warn("Backend offline, using local state."); }
+            
+            // --- FIX 3: Target the array specifically (res.data.categories) ---
+            if (res.data && Array.isArray(res.data.categories)) {
+                setCategories(res.data.categories);
+            } else if (Array.isArray(res.data)) {
+                setCategories(res.data);
+            }
+        } catch (err) { 
+            console.warn("Backend offline or categories fetch failed."); 
+            setCategories([]); // Fallback to empty array
+        }
     };
 
     const addCategory = async () => {
-        if (!newCat) return;
+        if (!newCat.trim()) return;
         try {
-            await axios.post('http://localhost:5000/api/admin/categories', { name: newCat, group: 'global' });
-            setNewCat('');
-            fetchCategories();
-        } catch (err) { alert("Sync failed."); }
+            const res = await axios.post('http://localhost:5000/api/admin/categories', { 
+                name: newCat.trim(), 
+                group: 'learning' // Changed to learning to match course context
+            });
+            if (res.data.success) {
+                setNewCat('');
+                fetchCategories();
+            }
+        } catch (err) { alert("Admin Sync failed."); }
     };
 
     const deleteCategory = async (id) => {
+        if (!window.confirm("Delete this category?")) return;
         try {
             await axios.delete(`http://localhost:5000/api/admin/categories/${id}`);
             fetchCategories();
@@ -93,28 +110,33 @@ const VideoPlayer = ({ course, user, setView, onVerify }) => {
     return (
         <div style={{...vStyles.wrapper, padding: isMobile ? '15px' : '30px'}}>
             
-            {/* 1. ADMIN CATEGORY ARCHITECT (Visible during verification for context) */}
+            {/* 1. ADMIN PANEL - FIXED CATEGORY MAPPING */}
             {isAdmin && (
                 <div style={vStyles.adminPanel}>
                     <div style={vStyles.adminHeader}>
                         <Settings size={14} color="#2563eb" /> 
-                        <span style={vStyles.adminTitle}>Global Category Sync</span>
+                        <span style={vStyles.adminTitle}>Skill Domain Sync</span>
                     </div>
                     <div style={{...vStyles.adminRow, flexDirection: isMobile ? 'column' : 'row'}}>
                         <input 
                             style={vStyles.adminInput} 
-                            placeholder="Add System Category..." 
+                            placeholder="Add Course Domain..." 
                             value={newCat}
                             onChange={(e) => setNewCat(e.target.value)}
                         />
                         <button onClick={addCategory} style={vStyles.adminAddBtn}><Plus size={14}/> Add</button>
                     </div>
                     <div style={vStyles.catScroll}>
-                        {categories.map(c => (
-                            <div key={c._id} style={vStyles.catTag}>
-                                {c.name} <Trash2 size={10} onClick={() => deleteCategory(c._id)} style={{cursor:'pointer', color:'#ef4444'}} />
-                            </div>
-                        ))}
+                        {/* --- FIX 4: Defensive Mapping Check --- */}
+                        {Array.isArray(categories) && categories.length > 0 ? (
+                            categories.map(c => (
+                                <div key={c._id || Math.random()} style={vStyles.catTag}>
+                                    {c.name} <Trash2 size={10} onClick={() => deleteCategory(c._id)} style={{cursor:'pointer', color:'#ef4444'}} />
+                                </div>
+                            ))
+                        ) : (
+                            <span style={{fontSize: '11px', color: '#94a3b8'}}>No domains synced.</span>
+                        )}
                     </div>
                 </div>
             )}
@@ -130,7 +152,6 @@ const VideoPlayer = ({ course, user, setView, onVerify }) => {
             </header>
 
             <div style={{...vStyles.mainGrid, gridTemplateColumns: isMobile ? '1fr' : '1.8fr 1fr'}}>
-                {/* VIDEO PLAYER SECTION */}
                 <div style={vStyles.videoSection}>
                     <div style={vStyles.videoWrapper}>
                         <iframe src={getEmbedUrl(course.video || course.videoUrl)} title="Course" frameBorder="0" allowFullScreen style={vStyles.iframe}></iframe>
@@ -142,13 +163,12 @@ const VideoPlayer = ({ course, user, setView, onVerify }) => {
                     </div>
                 </div>
 
-                {/* ASSESSMENT SECTION */}
                 <div style={{...vStyles.quizSection, marginTop: isMobile ? '20px' : '0'}}>
                     {!quizStarted ? (
                         <div style={vStyles.quizCard}>
                             <div style={vStyles.iconCircle}><Award size={32} color="#2563eb" /></div>
                             <h2 style={{margin: '20px 0 10px'}}>Certify Skill</h2>
-                            <p style={vStyles.quizHint}>Complete the quiz to earn <b>100 XP</b> and <b>$50</b>.</p>
+                            <p style={vStyles.quizHint}>Complete the quiz to earn <b>100 XP</b> and <b>৳50</b>.</p>
                             <button onClick={() => setQuizStarted(true)} style={vStyles.startBtn}>Start Assessment</button>
                         </div>
                     ) : isFinished ? (
@@ -156,7 +176,7 @@ const VideoPlayer = ({ course, user, setView, onVerify }) => {
                             <Trophy size={48} color="#fff" />
                             <h2 style={{margin: '20px 0 10px'}}>Verified!</h2>
                             <div style={vStyles.rewardRow}>
-                                <div style={vStyles.rewardItem}><span style={vStyles.rewardVal}>+$50</span><span style={vStyles.rewardLab}>Wallet</span></div>
+                                <div style={vStyles.rewardItem}><span style={vStyles.rewardVal}>+৳50</span><span style={vStyles.rewardLab}>Wallet</span></div>
                                 <div style={vStyles.rewardItem}><span style={vStyles.rewardVal}>+100</span><span style={vStyles.rewardLab}>XP</span></div>
                             </div>
                             <button onClick={() => setView('dashboard')} style={vStyles.dashboardBtn}>Claim Rewards</button>
@@ -185,6 +205,7 @@ const VideoPlayer = ({ course, user, setView, onVerify }) => {
     );
 };
 
+// ... (vStyles stay the same as your previous code)
 const vStyles = {
     wrapper: { maxWidth: '1280px', margin: '0 auto' },
     adminPanel: { background: '#f8fafc', padding: '15px', borderRadius: '18px', marginBottom: '25px', border: '1px dashed #cbd5e1' },
@@ -195,7 +216,6 @@ const vStyles = {
     adminAddBtn: { background:'#0f172a', color:'#fff', border:'none', padding:'0 15px', borderRadius:'8px', fontWeight:'bold', fontSize:'12px', cursor:'pointer' },
     catScroll: { display:'flex', flexWrap:'wrap', gap:'6px', marginTop:'10px' },
     catTag: { background:'#fff', padding:'4px 10px', borderRadius:'6px', fontSize:'11px', border:'1px solid #e2e8f0', display:'flex', alignItems:'center', gap:'5px', fontWeight:'700' },
-    
     header: { marginBottom: '30px', display: 'flex', gap: '20px' },
     backLink: { background: '#fff', border: '1px solid #e2e8f0', padding: '10px 18px', borderRadius: '14px', cursor: 'pointer', fontWeight: '800', display:'flex', alignItems:'center', gap:'8px' },
     title: { margin: 0, fontWeight: '900', color: '#0f172a' },
