@@ -1,0 +1,6 @@
+@echo off
+echo Installing Backend...
+cd backend && npm install && cd ..
+echo Installing Frontend...
+cd frontend && npm install && cd ..
+echo Setup Complete!
