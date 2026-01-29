@@ -9,7 +9,6 @@ const app = express();
 
 /**
  * 1. SECURITY & LOGGING
- * Configured to allow cross-origin images (important for professional profiles/logos)
  */
 app.use(helmet({ 
     crossOriginResourcePolicy: false, 
@@ -20,23 +19,29 @@ if (process.env.NODE_ENV === 'development') {
     app.use(morgan('dev')); 
 }
 
-// CORS Dynamic Configuration: Supports Local, Mobile Testing, and Vercel Production
+/**
+ * CORS Dynamic Configuration
+ * Includes your specific Vercel URL and local development environments.
+ */
 const allowedOrigins = [
+    "https://talent-bd-s.vercel.app", // Your NEW specific Vercel URL
+    "https://talent-bd-13.vercel.app", // Your secondary Vercel URL
     "http://localhost:3000", 
     "http://localhost:5173", 
     "http://127.0.0.1:3000", 
     "http://127.0.0.1:5173",
-    "http://192.168.0.106:3000", // Your Network IP for Mobile Testing
-    "https://talent-bd-13.vercel.app" // Your Specific Vercel URL
+    "http://192.168.0.106:3000" // Your Network IP for Mobile Testing
 ];
 
 app.use(cors({
-    origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps or curl)
-        if (!origin || allowedOrigins.includes(origin)) {
-            return callback(null, true);
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps, Postman, or curl)
+        // Or if the origin is in our allowed list
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('CORS blocked by TalentBD Engine Policy'));
         }
-        callback(new Error('CORS Blocked by TalentBD Security Policy'));
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true
@@ -44,14 +49,12 @@ app.use(cors({
 
 /**
  * 2. BODY PARSING
- * Increased limit to 15mb to handle base64 images for CVs/Certificates
  */
 app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
 /**
  * 3. DATABASE CONNECTION
- * Using the talentbd database specifically from your URI
  */
 const MONGO_URI = process.env.MONGO_URI;
 
@@ -70,17 +73,13 @@ const jobRoutes = require('./routes/jobRoutes');
 const adminRoutes = require('./routes/adminRoutes'); 
 const courseRoutes = require('./routes/courseRoutes');
 
-// API Mount Points
 app.use('/api/auth', authRoutes);      
 app.use('/api/jobs', jobRoutes);      
 app.use('/api/courses', courseRoutes);
-app.use('/api/admin', adminRoutes); // Mounted specifically to /admin
+app.use('/api/admin', adminRoutes); 
 
-/**
- * Taxonomy Sync: 
- * Handles the /api/categories request mentioned in your Jobs.js logic
- */
-const Category = require('./models/Category'); // Ensure this model exists
+// Taxonomy Sync Route
+const Category = require('./models/Category'); 
 app.get('/api/categories', async (req, res) => {
     try {
         const group = req.query.group || 'job';
@@ -108,11 +107,10 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// 404 Handler
 app.use((req, res) => {
     res.status(404).json({ 
         success: false, 
-        message: `TalentBD Engine: Endpoint ${req.originalUrl} not found.` 
+        message: `Endpoint ${req.originalUrl} not found.` 
     });
 });
 
@@ -135,8 +133,6 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 TalentBD 2026 Engine Live on Port: ${PORT}`);
 });
 
-// Handle sudden crashes (like MongoDB timeouts)
 process.on('unhandledRejection', (err) => {
     console.error(`🔴 Unhandled System Rejection: ${err.message}`);
-    // server.close(() => process.exit(1)); // Optional: keep alive on Render
 });

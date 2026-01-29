@@ -7,7 +7,7 @@ import { Plus, Trash2, Shield, Briefcase, GraduationCap } from 'lucide-react';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Jobs from './pages/Jobs';
-import JobDescription from './pages/JobDescription'; // Added for detail view
+import JobDescription from './pages/JobDescription'; 
 import CVBuilder from './pages/CVBuilder'; 
 import Login from './pages/Login';
 import Signup from './pages/Signup'; 
@@ -17,42 +17,46 @@ import VideoPlayer from './pages/VideoPlayer';
 import WalletDashboardMain from './pages/WalletDashboard';
 import AdminPostJob from './pages/AdminPostJob';
 
-const API_BASE = "http://localhost:5000/api";
+/**
+ * 🛠️ CONFIGURATION: Production API Base
+ * Swapping localhost for your live Render URL to enable Cloud Sync.
+ */
+const API_BASE = "https://talent-bd-backend.onrender.com/api";
 
 export default function App() {
+    // 1. User State Persistence
     const [user, setUser] = useState(() => {
         const saved = localStorage.getItem('talentbd_v1');
         return saved ? JSON.parse(saved) : null;
     });
 
+    // 2. Navigation & Selection States
     const [view, setView] = useState('home');
     const [currentCourse, setCurrentCourse] = useState(null);
-    const [selectedJob, setSelectedJob] = useState(null); // Added for Job Details
+    const [selectedJob, setSelectedJob] = useState(null); 
     const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 992 : false);
     
-    // Core Data States
+    // 3. Global Data States
     const [categories, setCategories] = useState([]);
     const [jobFilter, setJobFilter] = useState('All');
     const [newCatName, setNewCatName] = useState('');
     const [newCatGroup, setNewCatGroup] = useState('job');
-
     const [allJobs, setAllJobs] = useState([]);
     const [allCourses, setAllCourses] = useState([]);
     
-    // --- SYNC ENGINE ---
     const isSyncing = useRef(false);
 
     /**
-     * Refined Sync: Fetches taxonomy, jobs, and courses
+     * CORE SYNC ENGINE
+     * Fetches public taxonomy and updates user XP/Wallet if logged in via Render Backend.
      */
     const syncData = useCallback(async (force = false) => {
         if (isSyncing.current && !force) return;
 
         try {
             isSyncing.current = true;
-            console.log(`🔄 Syncing TalentBD Engine...`);
+            console.log(`🔄 Syncing TalentBD Engine with Cloud...`);
             
-            // Fixed URLs to match optimized backend routes
             const [catRes, jobRes, courseRes] = await Promise.all([
                 axios.get(`${API_BASE}/categories`),
                 axios.get(`${API_BASE}/jobs?isLive=true`),
@@ -74,7 +78,7 @@ export default function App() {
                 }
             }
         } catch (err) {
-            console.error("❌ Sync failed:", err.message);
+            console.error("❌ Cloud Sync failed:", err.message);
         } finally {
             isSyncing.current = false;
         }
@@ -87,7 +91,7 @@ export default function App() {
         return () => window.removeEventListener('resize', handleResize);
     }, [syncData]);
 
-    // Admin Actions
+    // Admin Action: Add Industry Category
     const handleAddCategory = async () => {
         if (!newCatName.trim()) return;
         try {
@@ -122,9 +126,10 @@ export default function App() {
     };
 
     return (
-        <div className="App" style={{ background: '#f8fafc', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <div className="App" style={styles.appContainer}>
             <Navbar setView={setView} user={user} handleLogout={handleLogout} />
             
+            {/* FLOATING EARNING STATUS BAR */}
             <AnimatePresence>
                 {user && !['video-player', 'cv-builder'].includes(view) && (
                     <motion.div 
@@ -143,13 +148,13 @@ export default function App() {
                 <AnimatePresence mode="wait">
                     <motion.div key={view} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                         
-                        {/* VIEW ROUTING */}
+                        {/* ROUTING LOGIC */}
                         {view === 'home' && <Home setView={setView} user={user} />}
                         
                         {view === 'jobs' && (
                             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '30px' }}>
                                 <aside style={{ ...styles.sidebar, width: isMobile ? '100%' : '280px' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                                    <div style={styles.sidebarHeader}>
                                         <h3 style={styles.sidebarTitle}>Industry</h3>
                                         {user?.role === 'admin' && (
                                             <button onClick={() => setView('admin-post')} style={styles.iconBtn}><Plus size={16} /></button>
@@ -167,13 +172,13 @@ export default function App() {
                                         jobs={jobFilter === 'All' ? allJobs : allJobs.filter(j => j.category === jobFilter)} 
                                         user={user} 
                                         setView={setView} 
-                                        setSelectedJob={setSelectedJob} // Prop drilling for navigation
+                                        setSelectedJob={setSelectedJob} 
                                     />
                                 </div>
                             </div>
                         )}
 
-                        {view === 'job-detail' && <JobDescription job={selectedJob} setView={setView} />}
+                        {view === 'job-detail' && <JobDescription job={selectedJob} setView={setView} user={user} />}
                         {view === 'admin-post' && <AdminPostJob user={user} setView={setView} />}
                         {view === 'learning' && <LearningHub courses={allCourses} categories={categories.filter(c => c.group === 'learning')} onStartCourse={(c) => { setCurrentCourse(c); setView('video-player'); }} user={user} />}
                         {view === 'video-player' && <VideoPlayer course={currentCourse} user={user} setView={setView} onVerify={() => syncData(true)} />}
@@ -183,7 +188,7 @@ export default function App() {
                         {view === 'login' && <Login setUser={setUser} setView={setView} />}
                         {view === 'signup' && <Signup setUser={setUser} setView={setView} />}
 
-                        {/* ADMIN TAXONOMY VIEW */}
+                        {/* ADMIN TAXONOMY MANAGEMENT */}
                         {user?.role === 'admin' && view === 'admin-categories' && (
                             <div style={styles.adminSection}>
                                 <div style={styles.adminHeader}><Shield size={22} color="#2563eb" /><h2>System Taxonomy</h2></div>
@@ -206,7 +211,6 @@ export default function App() {
                                 </div>
                             </div>
                         )}
-
                     </motion.div>
                 </AnimatePresence>
             </main>
@@ -214,12 +218,15 @@ export default function App() {
     );
 }
 
+// ... styles remain unchanged from your previous correct implementation
 const styles = {
+    appContainer: { background: '#f8fafc', minHeight: '100vh', display: 'flex', flexDirection: 'column' },
     mainContent: { flex: 1, width: '100%', maxWidth: '1440px', margin: '0 auto', padding: '0 20px', minHeight: '85vh' },
     earningBar: { position: 'fixed', left: '50%', transform: 'translateX(-50%)', background: '#0f172a', borderRadius: '50px', padding: '12px 25px', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)', cursor: 'pointer', zIndex: 999, border: '1px solid #334155' },
     divider: { width: '1px', height: '14px', background: '#334155' },
     statChip: { color: '#fff', fontSize: '14px', fontWeight: '800' },
     sidebar: { background: '#fff', padding: '25px', borderRadius: '25px', border: '1px solid #e2e8f0', height: 'fit-content', position: 'sticky', top: '180px' },
+    sidebarHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' },
     sidebarTitle: { fontSize: '11px', textTransform: 'uppercase', color: '#94a3b8', fontWeight: '800', letterSpacing: '1px' },
     activeCat: { width: '100%', padding: '12px 16px', textAlign: 'left', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: '700', marginBottom: '6px', cursor: 'pointer' },
     inactiveCat: { width: '100%', padding: '12px 16px', textAlign: 'left', background: 'transparent', color: '#64748b', border: 'none', borderRadius: '12px', fontWeight: '600', marginBottom: '6px', cursor: 'pointer', transition: '0.2s' },
