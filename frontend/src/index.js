@@ -1,11 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 
-/** * 1. SYNCHRONIZED STYLING ARCHITECTURE 
- * Hierarchy is critical for responsiveness:
- * - index.css: Lowest level (CSS Variables, Global Resets)
- * - App.css: Mid level (Dashboard Layouts, Header Transitions)
- * - Inline Components: Highest level (Specific logic for Wallet/Gigs)
+/** * 1. STYLING ARCHITECTURE 
+ * Hierarchical order to ensure CSS Variables are available to all components.
  */
 import './index.css'; 
 import './App.css'; 
@@ -14,9 +11,9 @@ import './App.css';
 import App from './App';
 
 /**
- * 3. 2026 PERFORMANCE OVERRIDES
- * We inject a viewport height fix to ensure the mobile experience 
- * doesn't suffer from the "address bar jump" during video lessons.
+ * 3. MOBILE VIDEO PLAYER OPTIMIZATION
+ * Fixes the "100vh" bug on mobile browsers (Safari/Chrome) where 
+ * the address bar hides content. Used in App.css via height: calc(var(--vh, 1vh) * 100).
  */
 const syncViewportHeight = () => {
   let vh = window.innerHeight * 0.01;
@@ -27,16 +24,27 @@ window.addEventListener('resize', syncViewportHeight);
 syncViewportHeight();
 
 /**
- * 4. RENDER ARCHITECTURE
- * Initializing React 18 Concurrent Root for your HP-840.
- * This enables "Time Slicing," allowing the XP Earning Bar to update 
- * without lagging the Video Player.
+ * 4. MULTI-TAB WALLET SYNC
+ * If a user earns XP or withdraws funds in Tab A, Tab B updates 
+ * automatically to prevent double-spending or stale data.
+ */
+window.addEventListener('storage', (e) => {
+  if (e.key === 'talentbd_v1') {
+    // Graceful refresh to reload user state and wallet balances
+    window.location.reload();
+  }
+});
+
+/**
+ * 5. RENDER ARCHITECTURE
+ * Initializing React 18 Concurrent Root.
+ * Optimized for HP-840 displays to manage concurrent rendering of 
+ * the XP Bar + Video Player without dropping frames.
  */
 const rootElement = document.getElementById('root');
 
 if (!rootElement) {
-  // Defensive check for production robustness
-  console.error("Critical Error: TalentBD root element not found.");
+  console.error("❌ Critical: TalentBD root element not found. Check public/index.html");
 } else {
   const root = ReactDOM.createRoot(rootElement);
 
@@ -44,8 +52,8 @@ if (!rootElement) {
     <React.StrictMode>
       {/* TALENTBD ECOSYSTEM 2026 
         ----------------------
-        Handles: Authentication, Wallet Payouts, 
-        MFS Integration (bKash/Nagad), and AI CV Logic.
+        System Core: Auth, MFS (bKash/Nagad) Gateway, 
+        and Learning Management.
       */}
       <App />
     </React.StrictMode>
@@ -53,26 +61,8 @@ if (!rootElement) {
 }
 
 /**
- * 5. SYSTEM HEALTH & PERSISTENCE SYNC
- * Ensures that if a user verifies a skill, 
- * the data is locked into LocalStorage immediately.
+ * 6. SYSTEM HEALTH MONITOR
  */
-window.addEventListener('storage', (e) => {
-  if (e.key === 'talentbd_v1') {
-    // Force re-sync across multiple tabs if user earns on one tab
-    window.location.reload();
-  }
-});
-
-/**
- * 6. PERFORMANCE REPORTING
- * Monitors FPS during heavy Framer Motion transitions 
- * in the WalletDashboard.
- */
-reportPerformance();
-
-function reportPerformance() {
-  if (process.env.NODE_ENV === 'development') {
-    // console.log("TalentBD Engine: System Health OK - 2026 Stable");
-  }
+if (process.env.NODE_ENV === 'development') {
+  console.log("🚀 TalentBD Engine: 2026 Stable | Concurrent Mode Active");
 }

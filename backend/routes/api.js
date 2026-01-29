@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { Job, Course, Category } = require('../models'); // SYNC: Unified Model Access
+const { Job, Course, Category } = require('../models'); 
+const { verifyAdmin } = require('./auth'); // Essential for security
 
-// --- 1. CORE STATUS (Preserved & Fixed) ---
-router.get('/', (req, res) => {
+// --- 1. CORE STATUS ---
+router.get('/health', (req, res) => {
     res.json({ 
         status: "TalentBD API Active", 
         timestamp: new Date(),
@@ -11,60 +12,67 @@ router.get('/', (req, res) => {
     });
 });
 
-// --- 2. ADMIN: CATEGORY MANAGEMENT (New Additions) ---
+// --- 2. CATEGORY MANAGEMENT ---
 
-// GET: Fetch all categories (Responsive for Sidebar/Dropdowns)
+// PUBLIC: Fetch all categories (Used by Search, Profile, and Signup)
 router.get('/categories', async (req, res) => {
     try {
-        const { group } = req.query; // 'job' or 'learning'
-        const filter = group ? { group } : {};
+        const { group } = req.query; 
+        const filter = group ? { group: group.toLowerCase() } : {};
+        // Only show active categories to the public
+        filter.isActive = { $ne: false }; 
+
         const categories = await Category.find(filter).sort({ name: 1 });
         res.json({ success: true, categories });
     } catch (err) {
-        res.status(500).json({ error: "Failed to fetch categories" });
+        res.status(500).json({ success: false, error: "Failed to fetch categories" });
     }
 });
 
-// POST: Admin adds a new category
-router.post('/admin/categories', async (req, res) => {
+// ADMIN ONLY: Add category
+router.post('/admin/categories', verifyAdmin, async (req, res) => {
     try {
-        const { name, group } = req.body; // e.g., { name: 'AI Engineering', group: 'job' }
-        if (!name || !group) return res.status(400).json({ error: "Missing name or group" });
+        const { name, group, icon } = req.body;
+        if (!name || !group) return res.status(400).json({ error: "Name and group required" });
 
-        const newCategory = new Category({ name, group });
-        await newCategory.save();
-        res.status(201).json({ success: true, message: "Category Added", newCategory });
+        const newCategory = await Category.create({ 
+            name: name.trim(), 
+            group: group.toLowerCase(),
+            icon: icon || '📁' 
+        });
+        
+        res.status(201).json({ success: true, category: newCategory });
     } catch (err) {
-        res.status(400).json({ error: "Category already exists or invalid data" });
+        res.status(400).json({ error: "Category sync error (likely duplicate name)" });
     }
 });
 
-// DELETE: Admin removes a category
-router.delete('/admin/categories/:id', async (req, res) => {
+// ADMIN ONLY: Delete (Soft Delete recommended, but this is a Hard Delete)
+router.delete('/admin/categories/:id', verifyAdmin, async (req, res) => {
     try {
-        await Category.findByIdAndDelete(req.params.id);
-        res.json({ success: true, message: "Category Deleted Successfully" });
+        const deleted = await Category.findByIdAndDelete(req.params.id);
+        if (!deleted) return res.status(404).json({ error: "Category not found" });
+        res.json({ success: true, message: "Category removed from ecosystem" });
     } catch (err) {
-        res.status(400).json({ error: "Delete failed" });
+        res.status(400).json({ error: "Delete operation failed" });
     }
 });
 
-// --- 3. DATA SYNC ROUTES ---
+// --- 3. UNIFIED DATA FETCHING ---
 
-// Unified Job Fetching (Responsive to Admin Categories)
+
+
+// GET Jobs with Category Filtering
 router.get('/jobs', async (req, res) => {
-    const { category } = req.query;
-    const query = category ? { category } : {};
-    const jobs = await Job.find(query).sort({ createdAt: -1 });
-    res.json(jobs);
-});
-
-// Unified Course Fetching
-router.get('/courses', async (req, res) => {
-    const { category } = req.query;
-    const query = category ? { category } : {};
-    const courses = await Course.find(query).sort({ createdAt: -1 });
-    res.json(courses);
+    try {
+        const { category } = req.query;
+        // Search by category ID or Name depending on your Frontend setup
+        const query = category ? { category, isActive: true } : { isActive: true };
+        const jobs = await Job.find(query).populate('category').sort({ createdAt: -1 });
+        res.json({ success: true, data: jobs });
+    } catch (err) {
+        res.status(500).json({ error: "Job fetch failed" });
+    }
 });
 
 module.exports = router;

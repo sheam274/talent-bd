@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { 
     Menu, X, BookOpen, Briefcase, User, LogOut, 
-    ChevronRight, Settings, Sparkles, Wallet, LayoutGrid 
+    ChevronRight, Sparkles, Wallet, LayoutGrid 
 } from 'lucide-react';
 
 const Navbar = ({ setView, user, handleLogout }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
     const [hoveredItem, setHoveredItem] = useState(null);
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+    const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 1024 : false);
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 1024);
@@ -22,11 +22,11 @@ const Navbar = ({ setView, user, handleLogout }) => {
         };
     }, []);
 
+    // ATS Scanner has been removed from this array
     const navItems = [
         { label: 'Find Jobs', icon: <Briefcase size={18}/>, view: 'jobs' },
         { label: 'Learning Hub', icon: <BookOpen size={18}/>, view: 'learning' },
         { label: 'CV Builder', icon: <Sparkles size={18}/>, view: 'cv-builder' },
-        { label: 'ATS Scanner', icon: <Settings size={18}/>, view: 'ats-scanner' },
     ];
 
     const handleNav = (view) => {
@@ -40,7 +40,7 @@ const Navbar = ({ setView, user, handleLogout }) => {
     return (
         <nav style={{
             ...navStyles.nav,
-            backgroundColor: scrolled ? 'rgba(255, 255, 255, 0.9)' : '#ffffff',
+            backgroundColor: scrolled ? 'rgba(255, 255, 255, 0.95)' : '#ffffff',
             backdropFilter: scrolled ? 'blur(20px)' : 'none',
             borderBottom: scrolled ? '1px solid rgba(226, 232, 240, 0.8)' : '1px solid #f1f5f9',
         }}>
@@ -53,7 +53,7 @@ const Navbar = ({ setView, user, handleLogout }) => {
                     </span>
                 </div>
 
-                {/* Desktop Menu + Admin Category Access */}
+                {/* Desktop Menu */}
                 {!isMobile && (
                     <div style={navStyles.desktopMenu}>
                         {navItems.map((item) => (
@@ -120,7 +120,7 @@ const Navbar = ({ setView, user, handleLogout }) => {
                 </div>
             </div>
 
-            {/* Mobile Dropdown - Optimized for Touch */}
+            {/* Mobile Dropdown */}
             {isOpen && isMobile && (
                 <div style={navStyles.mobileMenu}>
                     {navItems.map((item) => (
@@ -131,8 +131,8 @@ const Navbar = ({ setView, user, handleLogout }) => {
                     ))}
                     
                     {user?.role === 'admin' && (
-                        <button onClick={() => handleNav('admin-categories')} style={{...navStyles.mobileLink, color: '#8b5cf6'}}>
-                            <span style={{...navStyles.mobileIconWrapper, color: '#8b5cf6'}}><LayoutGrid size={18} /></span>
+                        <button onClick={() => handleNav('admin-categories')} style={{...navStyles.mobileLink, color: '#7c3aed'}}>
+                            <span style={{...navStyles.mobileIconWrapper, color: '#7c3aed'}}><LayoutGrid size={18} /></span>
                             Manage Categories
                         </button>
                     )}
@@ -156,19 +156,15 @@ const Navbar = ({ setView, user, handleLogout }) => {
     );
 };
 
-// --- Synced Styles (Preserving all original spacing) ---
 const navStyles = {
     nav: { position: 'fixed', top: 0, left: 0, right: 0, height: '72px', display: 'flex', alignItems: 'center', transition: 'all 0.3s ease', zIndex: 2000 },
     container: { width: '100%', maxWidth: '1400px', margin: '0 auto', padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
     logo: { fontSize: '24px', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' },
     logoIcon: { background: '#2563eb', color: '#fff', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' },
     desktopMenu: { display: 'flex', gap: '24px', alignItems: 'center' },
-    link: { background: 'none', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '15px', position: 'relative', padding: '10px 0' },
+    link: { background: 'none', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '15px', position: 'relative', padding: '10px 0', outline: 'none' },
     underline: { position: 'absolute', bottom: '-2px', left: '0', right: '0', height: '3px', background: '#2563eb', borderRadius: '10px' },
-    
-    // ADMIN SYNC STYLE
     adminCategoryBtn: { background: '#f5f3ff', color: '#7c3aed', border: '1px solid #ddd6fe', padding: '6px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' },
-    
     actionGroup: { display: 'flex', gap: '12px', alignItems: 'center' },
     userGroup: { display: 'flex', gap: '10px', alignItems: 'center' },
     walletBadge: { background: '#f0fdf4', color: '#16a34a', padding: '6px 12px', borderRadius: '10px', fontSize: '13px', fontWeight: '800', border: '1px solid #dcfce7', display: 'flex', alignItems: 'center', gap: '6px' },
@@ -179,7 +175,7 @@ const navStyles = {
     logoutIconBtn: { background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' },
     mobileToggle: { background: '#f8fafc', border: '1px solid #e2e8f0', padding: '8px', borderRadius: '10px', cursor: 'pointer' },
     mobileMenu: { position: 'absolute', top: '80px', left: '15px', right: '15px', background: '#fff', borderRadius: '20px', display: 'flex', flexDirection: 'column', padding: '15px', gap: '8px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', border: '1px solid #f1f5f9' },
-    mobileLink: { background: 'none', border: 'none', textAlign: 'left', padding: '14px', fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '12px', borderRadius: '12px', color: '#334155' },
+    mobileLink: { background: 'none', border: 'none', textAlign: 'left', padding: '14px', fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '12px', borderRadius: '12px', color: '#334155', cursor: 'pointer' },
     mobileIconWrapper: { color: '#2563eb' },
     mobileDivider: { height: '1px', background: '#f1f5f9', margin: '5px 0' },
     mobileJoinBtn: { background: '#2563eb', color: '#fff', border: 'none', padding: '14px', borderRadius: '12px', fontWeight: '700' }

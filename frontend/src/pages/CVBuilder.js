@@ -5,7 +5,7 @@ import axios from 'axios';
 import { 
     Sparkles, Download, Cloud, Plus, Trash2, Layout, X, 
     GraduationCap, Award, Briefcase, Code, Camera, User, 
-    ExternalLink, Eye, Layers 
+    ExternalLink, Eye, Layers, BookOpen
 } from 'lucide-react';
 
 // --- Shared Section Component ---
@@ -30,29 +30,30 @@ export default function CVBuilder({ user, job, onClose }) {
         summary: '',
         skills: [{ name: '', level: 'Expert' }],
         experience: [{ company: '', role: '', period: '', metrics: '' }],
-        education: [{ institute: '', degree: '', year: '', gpa: '' }],
+        education: [{ institute: '', degree: '', year: '', gpa: '', honors: '' }], // Added honors
         projects: [{ title: '', tech: '', description: '', link: '' }]
     });
 
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+    const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 1024 : false);
     const [showPreviewMobile, setShowPreviewMobile] = useState(false);
-    const [categories, setCategories] = useState([]); // SYNC: Platform categories
-    const [loading, setLoading] = useState(false);
+    const [categories, setCategories] = useState([]); 
     const fileInputRef = useRef(null);
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 1024);
         window.addEventListener('resize', handleResize);
-        fetchCategories(); // SYNC: Fetch global categories for skills/projects
+        fetchCategories(); 
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // --- CATEGORY SYNC LOGIC ---
     const fetchCategories = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/categories');
-            setCategories(res.data);
-        } catch (err) { console.warn("Category sync unavailable - using offline tags."); }
+            const res = await axios.get('http://localhost:5000/api/categories?group=job');
+            const data = res.data.categories || []; 
+            setCategories(Array.isArray(data) ? data : []);
+        } catch (err) { 
+            setCategories([]); 
+        }
     };
 
     const updateField = (section, index, field, value) => {
@@ -81,7 +82,7 @@ export default function CVBuilder({ user, job, onClose }) {
 
     const exportPDF = () => {
         const input = document.getElementById('resume-preview');
-        html2canvas(input, { scale: 2, useCORS: true }).then(canvas => {
+        html2canvas(input, { scale: 3, useCORS: true }).then(canvas => {
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF('p', 'mm', 'a4');
             pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
@@ -111,7 +112,7 @@ export default function CVBuilder({ user, job, onClose }) {
                 </header>
 
                 <div style={styles.formScroll}>
-                    {/* PHOTO & IDENTITY */}
+                    {/* Identity & Summary (Existing) */}
                     <div style={styles.identityRow}>
                         <div style={styles.photoUploadZone} onClick={() => fileInputRef.current.click()}>
                             {cvData.photo ? <img src={cvData.photo} alt="P" style={styles.photoPreviewCircle} /> : <Camera size={20} color="#94a3b8" />}
@@ -119,7 +120,7 @@ export default function CVBuilder({ user, job, onClose }) {
                         </div>
                         <div style={{flex:1}}>
                             <input style={styles.input} placeholder="Full Name" value={cvData.name} onChange={e => setCvData({...cvData, name: e.target.value})} />
-                            <input style={styles.input} placeholder="Professional Title (e.g. MERN Developer)" value={cvData.linkedin} onChange={e => setCvData({...cvData, linkedin: e.target.value})} />
+                            <input style={styles.input} placeholder="Professional Title" value={cvData.linkedin} onChange={e => setCvData({...cvData, linkedin: e.target.value})} />
                         </div>
                     </div>
 
@@ -127,7 +128,25 @@ export default function CVBuilder({ user, job, onClose }) {
                         <textarea style={styles.textarea} placeholder="Describe your 2026 career goals..." value={cvData.summary} onChange={e => setCvData({...cvData, summary: e.target.value})} />
                     </SectionWrapper>
 
-                    {/* DYNAMIC SKILL TAGS (SYNCED WITH PLATFORM) */}
+                    {/* NEW: ACADEMIC HISTORY SECTION */}
+                    <SectionWrapper title="Academic History" onAdd={() => addSectionItem('education', {institute:'', degree:'', year:'', gpa:'', honors:''})}>
+                        {cvData.education.map((edu, i) => (
+                            <div key={i} style={styles.itemCard}>
+                                <div style={styles.cardHeader}>
+                                    <input style={styles.cardInputBold} placeholder="Institution Name" value={edu.institute} onChange={e => updateField('education', i, 'institute', e.target.value)} />
+                                    <Trash2 size={14} color="#ef4444" onClick={() => removeSectionItem('education', i)} style={{cursor:'pointer'}}/>
+                                </div>
+                                <div style={{display:'flex', gap:'10px'}}>
+                                    <input style={{...styles.input, flex:2}} placeholder="Degree / Group" value={edu.degree} onChange={e => updateField('education', i, 'degree', e.target.value)} />
+                                    <input style={{...styles.input, flex:1}} placeholder="Year" value={edu.year} onChange={e => updateField('education', i, 'year', e.target.value)} />
+                                </div>
+                                <input style={styles.input} placeholder="GPA / Grade (e.g. 3.90/4.0)" value={edu.gpa} onChange={e => updateField('education', i, 'gpa', e.target.value)} />
+                                <input style={styles.input} placeholder="Achievements / Honors" value={edu.honors} onChange={e => updateField('education', i, 'honors', e.target.value)} />
+                            </div>
+                        ))}
+                    </SectionWrapper>
+
+                    {/* Skills, Projects, Experience (Existing) */}
                     <SectionWrapper title="Core Skills" onAdd={() => addSectionItem('skills', {name:'', level:'Expert'})}>
                         <div style={styles.skillsGrid}>
                             {cvData.skills.map((sk, i) => (
@@ -206,16 +225,34 @@ export default function CVBuilder({ user, job, onClose }) {
                             {cvData.projects.map((p, i) => (
                                 <div key={i} style={{marginBottom:'10px'}}>
                                     <div style={{display:'flex', justifyContent:'space-between'}}>
-                                        <strong>{p.title}</strong>
+                                        <strong style={{fontSize:'12px'}}>{p.title}</strong>
                                         <span style={{color:'#2563eb', fontSize:'10px'}}>{p.tech}</span>
                                     </div>
                                     <p style={styles.cvText}>{p.description}</p>
                                 </div>
                             ))}
+
+                            <h3 style={styles.cvTitle}>Experience</h3>
+                            {cvData.experience.map((ex, i) => (
+                                <div key={i} style={{marginBottom:'10px'}}>
+                                    <strong>{ex.company}</strong> | {ex.role}
+                                    <p style={styles.cvText}>{ex.metrics}</p>
+                                </div>
+                            ))}
                         </div>
 
                         <div style={styles.cvSide}>
-                            <h3 style={styles.cvTitle}>Expertise</h3>
+                            <h3 style={styles.cvTitle}>Academic History</h3>
+                            {cvData.education.map((ed, i) => (
+                                <div key={i} style={{marginBottom:'12px'}}>
+                                    <div style={{fontWeight:'800', fontSize:'11px', color:'#0f172a'}}>{ed.degree}</div>
+                                    <div style={{fontSize:'10px', color:'#2563eb', fontWeight:'600'}}>{ed.institute}</div>
+                                    <div style={{fontSize:'9px', color:'#64748b'}}>{ed.year} {ed.gpa && `• GPA: ${ed.gpa}`}</div>
+                                    {ed.honors && <div style={{fontSize:'9px', fontStyle:'italic', marginTop:'2px'}}>✨ {ed.honors}</div>}
+                                </div>
+                            ))}
+
+                            <h3 style={{...styles.cvTitle, marginTop:'20px'}}>Expertise</h3>
                             <div style={styles.skillTagsWrap}>
                                 {cvData.skills.map((s, i) => (
                                     <span key={i} style={styles.previewSkill}>{s.name}</span>
@@ -229,7 +266,9 @@ export default function CVBuilder({ user, job, onClose }) {
     );
 }
 
+// Styles preserved and extended for Academic History
 const styles = {
+    // ... all your previous styles ...
     container: { display: 'flex', height: '100vh', background: '#f8fafc', overflow:'hidden' },
     editorPane: { background: '#fff', borderRight: '1px solid #e2e8f0', flexDirection: 'column', padding: '25px', boxSizing: 'border-box' },
     paneHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' },
@@ -264,7 +303,7 @@ const styles = {
     cvMain: { flex: 2 },
     cvSide: { flex: 1, borderLeft: '1px solid #f1f5f9', paddingLeft: '20px' },
     cvTitle: { fontSize: '12px', textTransform: 'uppercase', color: '#2563eb', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px', marginBottom: '10px' },
-    cvText: { fontSize: '11.5px', lineHeight: '1.6', color: '#475569', marginBottom: '10px' },
+    cvText: { fontSize: '11px', lineHeight: '1.6', color: '#475569', marginBottom: '8px' },
     skillTagsWrap: { display: 'flex', flexWrap: 'wrap', gap: '5px' },
     previewSkill: { background: '#f8fafc', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', border: '1px solid #e2e8f0' },
     mobileToggleBtn: { background: '#2563eb', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '5px' },

@@ -29,25 +29,43 @@ const Login = ({ setUser, setView }) => {
     // --- CATEGORY SYNC LOGIC ---
     const fetchCategories = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/categories');
-            setCategories(res.data);
-        } catch (err) { console.warn("Syncing with local cache..."); }
+            // Updated to use the public categories endpoint
+            const res = await axios.get('http://localhost:5000/api/categories?group=job');
+            // SYNC FIX: Access the categories array inside the response object
+            setCategories(res.data.categories || []);
+        } catch (err) { 
+            console.warn("Syncing with local cache..."); 
+            setCategories([]);
+        }
     };
 
     const addCategory = async () => {
         if (!newCat) return;
+        // SYNC FIX: Get token for Admin authorization
+        const storedUser = JSON.parse(localStorage.getItem('talentbd_v1'));
+        
         try {
-            await axios.post('http://localhost:5000/api/admin/categories', { name: newCat, group: 'global' });
+            await axios.post('http://localhost:5000/api/auth/admin/categories', 
+                { name: newCat, group: 'job' },
+                { headers: { Authorization: `Bearer ${storedUser?.token}` } }
+            );
             setNewCat('');
             fetchCategories();
-        } catch (err) { alert("Admin sync error"); }
+        } catch (err) { 
+            alert(err.response?.data?.message || "Admin sync error: Check privileges"); 
+        }
     };
 
     const deleteCategory = async (id) => {
+        const storedUser = JSON.parse(localStorage.getItem('talentbd_v1'));
         try {
-            await axios.delete(`http://localhost:5000/api/admin/categories/${id}`);
+            await axios.delete(`http://localhost:5000/api/auth/admin/categories/${id}`, {
+                headers: { Authorization: `Bearer ${storedUser?.token}` }
+            });
             fetchCategories();
-        } catch (err) { console.error(err); }
+        } catch (err) { 
+            console.error("Delete failed:", err); 
+        }
     };
 
     const isMobile = windowWidth < 768;
@@ -57,28 +75,23 @@ const Login = ({ setUser, setView }) => {
         setError('');
         setLoading(true);
 
-        // SYNC: Admin Backdoor for your testing
-        if (email === 'admin@talentbd.com' && password === 'admin123') {
-            const adminUser = { email: 'admin@talentbd.com', role: 'admin', name: 'System Admin', skills: [] };
-            localStorage.setItem('talentbd_v1', JSON.stringify(adminUser));
-            setUser(adminUser);
-            setView('home');
-            return;
-        }
-
+        // SYNC FIX: Endpoint updated to /api/auth/login
         try {
-            const response = await fetch('http://localhost:5000/api/login', {
+            const response = await fetch('http://localhost:5000/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: email.toLowerCase().trim(), password })
             });
+            
             const data = await response.json();
-            if (response.ok) {
-                localStorage.setItem('talentbd_v1', JSON.stringify(data));
-                setUser(data); 
+            
+            if (response.ok && data.success) {
+                // SYNC FIX: Backend returns { success: true, user: { ... } }
+                localStorage.setItem('talentbd_v1', JSON.stringify(data.user));
+                setUser(data.user); 
                 setView('home'); 
             } else {
-                setError(data.error || 'Invalid credentials.');
+                setError(data.message || 'Invalid credentials.');
             }
         } catch (err) {
             setError('Cloud Sync Offline: Connect to Node.js Port 5000.');
@@ -176,7 +189,7 @@ const Login = ({ setUser, setView }) => {
                 </div>
             </div>
 
-            {/* RIGHT SIDE: ADMIN CATEGORY MANAGER (Responsive Reveal) */}
+            {/* RIGHT SIDE: ADMIN CATEGORY MANAGER */}
             {showAdminPanel && (
                 <div style={{...styles.adminFlyout, width: isMobile ? '100%' : '350px', marginLeft: isMobile ? '0' : '20px', marginTop: isMobile ? '20px' : '0'}}>
                     <div style={styles.adminHeader}>

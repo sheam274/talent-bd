@@ -1,18 +1,20 @@
 {
   "name": "talentbd-2026-platform",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
-  "description": "TalentBD 2026: The ultimate Ed-Tech & Fintech Hybrid Platform with Admin Category Controls.",
+  "author": "TalentBD Dev Team",
+  "description": "TalentBD 2026: Ed-Tech & Fintech Hybrid with Admin Taxonomy and MFS Integration.",
   "engines": {
     "node": ">=22.x"
   },
   "scripts": {
     "start": "react-scripts start",
-    "server": "nodemon server/index.js",
-    "dev": "concurrently \"npm start\" \"npm run server\"",
+    "server": "cross-env NODE_ENV=development nodemon server/index.js",
+    "dev": "concurrently -n \"Frontend,Backend\" -c \"blue,green\" \"npm start\" \"wait-on http://localhost:5000/api/health && npm run server\"",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "lint": "eslint src/**/*.js"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -29,7 +31,9 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "clsx": "^2.1.0",
+    "tailwind-merge": "^2.2.1"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

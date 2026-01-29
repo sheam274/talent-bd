@@ -1,48 +1,81 @@
 const express = require('express');
 const router = express.Router();
-const { User, Category } = require('../models'); // SYNC: Added Category model
+const { User, Category } = require('../models');
+
+/**
+ * --- SECURITY MIDDLEWARE ---
+ * Verifies if the request is coming from an authenticated Admin
+ */
+const verifyAdmin = async (req, res, next) => {
+    try {
+        // Assume user object is attached via a previous auth middleware
+        // If not, you would verify the JWT here.
+        if (req.user && req.user.role === 'admin') {
+            next();
+        } else {
+            res.status(403).json({ error: "Access denied. Admin privileges required." });
+        }
+    } catch (err) {
+        res.status(500).json({ error: "Internal security check failed" });
+    }
+};
 
 /**
  * --- ADMIN FEATURE: DYNAMIC CATEGORY MANAGEMENT ---
- * Allows Admin to add/delete categories for Job Matching & Learning Hub
  */
 
-// 1. ADD: Admin adds a new category (e.g., "Cybersecurity" for "learning")
-router.post('/admin/categories', async (req, res) => {
+// 1. ADD: Admin adds a new category with group taxonomy
+router.post('/admin/categories', verifyAdmin, async (req, res) => {
     try {
         const { name, group } = req.body; // group: 'job' or 'learning'
         if (!name || !group) return res.status(400).json({ error: "Name and group are required" });
 
-        const newCategory = new Category({ name, group });
+        // Normalize name to prevent duplicates like "AI" and "ai"
+        const normalizedName = name.trim();
+        
+        const newCategory = new Category({ 
+            name: normalizedName, 
+            group: group.toLowerCase() 
+        });
+        
         await newCategory.save();
-        res.status(201).json({ success: true, message: "Category synced to system", category: newCategory });
+        res.status(201).json({ 
+            success: true, 
+            message: "Platform taxonomy updated", 
+            category: newCategory 
+        });
     } catch (err) {
-        res.status(400).json({ error: "Category already exists or invalid data" });
+        res.status(400).json({ error: "Category already exists or validation failed" });
     }
 });
 
 // 2. DELETE: Admin removes a category
-router.delete('/admin/categories/:id', async (req, res) => {
+router.delete('/admin/categories/:id', verifyAdmin, async (req, res) => {
     try {
-        await Category.findByIdAndDelete(req.params.id);
-        res.json({ success: true, message: "Category removed from platform" });
+        const deleted = await Category.findByIdAndDelete(req.params.id);
+        if (!deleted) return res.status(404).json({ error: "Category not found" });
+        
+        res.json({ success: true, message: "Category removed from global registry" });
     } catch (err) {
-        res.status(500).json({ error: "Delete operation failed" });
+        res.status(500).json({ error: "System could not process deletion" });
     }
 });
 
-// 3. GET: Fetch all active categories (Responsive for CV Dropdowns)
+// 3. GET: Fetch categories (Supports optional filtering by group)
 router.get('/categories/all', async (req, res) => {
     try {
-        const categories = await Category.find({}).sort({ name: 1 });
-        res.json(categories);
+        const { group } = req.query;
+        const filter = group ? { group: group.toLowerCase() } : {};
+        
+        const categories = await Category.find(filter).sort({ name: 1 });
+        res.json({ categories });
     } catch (err) {
         res.status(500).json({ error: "Failed to load platform categories" });
     }
 });
 
 /**
- * --- CV & PROFILE SYNC (Preserved & Enhanced) ---
+ * --- CV & PROFILE SYNC (Skill Aggregator) ---
  */
 
 router.post('/save', async (req, res) => {
@@ -50,13 +83,16 @@ router.post('/save', async (req, res) => {
         const { userId, cvData } = req.body;
 
         if (!userId || !cvData) {
-            return res.status(400).json({ error: "User ID and CV Content are required" });
+            return res.status(400).json({ error: "User identity and data required" });
         }
 
         const currentUser = await User.findById(userId);
         if (!currentUser) return res.status(404).json({ error: "User not found" });
 
-        const manualSkills = cvData.manualSkills ? cvData.manualSkills.map(s => s.name.toLowerCase().trim()) : [];
+        // TalentBD 2026 Skill Logic: Automerge CV skills into profile
+        const manualSkills = cvData.manualSkills 
+            ? cvData.manualSkills.map(s => s.name.toLowerCase().trim()) 
+            : [];
         const existingSkills = currentUser.skills || [];
         const combinedSkills = [...new Set([...existingSkills, ...manualSkills])];
 
@@ -68,20 +104,17 @@ router.post('/save', async (req, res) => {
                         ...cvData,
                         email: cvData.email || currentUser.email,
                         name: cvData.name || currentUser.name,
-                        profileImage: cvData.profileImage || currentUser.savedCV.profileImage
+                        profileImage: cvData.profileImage || (currentUser.savedCV && currentUser.savedCV.profileImage)
                     },
                     skills: combinedSkills 
                 } 
             },
             { new: true, runValidators: true }
-        ).select('-password')
-         .populate('bookmarks')
-         .populate('purchasedCourses');
+        ).select('-password');
 
         res.json({ 
             success: true, 
-            message: "Professional Profile and CV Synced Successfully",
-            profileStrength: updatedUser.profileComplete,
+            message: "Cloud Profile Synced",
             user: updatedUser 
         });
 

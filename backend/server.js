@@ -2,108 +2,141 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const bcrypt = require('bcryptjs');
 const morgan = require('morgan'); 
 const helmet = require('helmet'); 
 
-// --- 1. MODELS IMPORT ---
-const { User, Job, Course, Category } = require('./models'); 
-
-// --- 2. ROUTER IMPORTS ---
-const courseRoutes = require('./routes/courseRoutes'); 
-const jobRoutes    = require('./routes/jobRoutes');   
-const atsRoutes    = require('./routes/scanner');    
-const cvRoutes     = require('./routes/cvRoutes');   
-const adminRoutes  = require('./routes/adminRoutes');
-const walletRoutes = require('./routes/walletRoutes');
-const authRoutes   = require('./routes/auth');
-
 const app = express();
 
-// --- 3. MIDDLEWARE ---
-app.use(helmet({ crossOriginResourcePolicy: false })); 
-app.use(morgan('dev')); 
+/**
+ * 1. SECURITY & LOGGING
+ * Configured to allow cross-origin images (important for professional profiles/logos)
+ */
+app.use(helmet({ 
+    crossOriginResourcePolicy: false, 
+    contentSecurityPolicy: false 
+})); 
+
+if (process.env.NODE_ENV === 'development') {
+    app.use(morgan('dev')); 
+}
+
+// CORS Dynamic Configuration: Supports Local, Mobile Testing, and Vercel Production
+const allowedOrigins = [
+    "http://localhost:3000", 
+    "http://localhost:5173", 
+    "http://127.0.0.1:3000", 
+    "http://127.0.0.1:5173",
+    "http://192.168.0.106:3000", // Your Network IP for Mobile Testing
+    "https://talent-bd-13.vercel.app" // Your Specific Vercel URL
+];
+
 app.use(cors({
-    origin: ["http://localhost:3000", "https://talent-bd-13.vercel.app"], 
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl)
+        if (!origin || allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        callback(new Error('CORS Blocked by TalentBD Security Policy'));
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true
 }));
-app.use(express.json());
 
-// --- 4. DATABASE CONNECTION ---
-const mongoURI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/talentbd";
-mongoose.connect(mongoURI)
-    .then(() => console.log('✅ Talent-BD Engine: Synced with MongoDB'))
-    .catch(err => console.error('❌ MongoDB Connection Error:', err));
+/**
+ * 2. BODY PARSING
+ * Increased limit to 15mb to handle base64 images for CVs/Certificates
+ */
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
-// --- 5. ADMIN CATEGORY API ---
-app.post('/api/admin/categories', async (req, res) => {
-    try {
-        const { name, group, icon } = req.body;
-        if (!name || !group) return res.status(400).json({ error: "Missing fields" });
-        const category = await Category.create({ 
-            name: name.trim(), 
-            group: group.toLowerCase(), 
-            icon: icon || (group === 'job' ? '💼' : '🎓') 
-        });
-        res.status(201).json({ success: true, category });
-    } catch (err) { res.status(400).json({ error: "Sync failed: Duplicate Category" }); }
+/**
+ * 3. DATABASE CONNECTION
+ * Using the talentbd database specifically from your URI
+ */
+const MONGO_URI = process.env.MONGO_URI;
+
+mongoose.set('strictQuery', false);
+mongoose.connect(MONGO_URI)
+.then(() => console.log('✅ TalentBD Cloud Database: Active and Synced'))
+.catch(err => {
+    console.error('❌ MongoDB Connection Failure:', err.message);
 });
 
-app.delete('/api/admin/categories/:id', async (req, res) => {
-    try {
-        await Category.findByIdAndDelete(req.params.id);
-        res.json({ success: true, message: "Category deleted" });
-    } catch (err) { res.status(500).json({ error: "Delete failed" }); }
-});
+/**
+ * 4. ROUTE ARCHITECTURE
+ */
+const authRoutes = require('./routes/auth');
+const jobRoutes = require('./routes/jobRoutes');
+const adminRoutes = require('./routes/adminRoutes'); 
+const courseRoutes = require('./routes/courseRoutes');
 
+// API Mount Points
+app.use('/api/auth', authRoutes);      
+app.use('/api/jobs', jobRoutes);      
+app.use('/api/courses', courseRoutes);
+app.use('/api/admin', adminRoutes); // Mounted specifically to /admin
+
+/**
+ * Taxonomy Sync: 
+ * Handles the /api/categories request mentioned in your Jobs.js logic
+ */
+const Category = require('./models/Category'); // Ensure this model exists
 app.get('/api/categories', async (req, res) => {
     try {
-        const { group } = req.query;
-        const filter = group ? { group: group.toLowerCase() } : {};
-        const cats = await Category.find(filter).sort({ name: 1 });
-        res.json(cats);
-    } catch (err) { res.status(500).json({ error: "Fetch error" }); }
-});
-
-// --- 6. AUTHENTICATION ---
-app.post('/api/login', async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        const user = await User.findOne({ email: email.toLowerCase().trim() });
-        if (user && await bcrypt.compare(password, user.password)) {
-            const { password: _, ...data } = user._doc;
-            return res.json(data);
-        }
-        res.status(401).json({ error: 'Invalid credentials' });
-    } catch (e) { res.status(500).json({ error: 'Server error' }); }
-});
-
-// --- 7. ROUTE MOUNTING ---
-app.use('/api/courses', courseRoutes);
-app.use('/api/jobs', jobRoutes);
-app.use('/api/ats', atsRoutes);
-app.use('/api/cv', cvRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/wallet', walletRoutes);
-app.use('/api/auth', authRoutes);
-
-// --- 8. GLOBAL ERROR & PORT HANDLER ---
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ error: "Internal Sync Error" });
-});
-
-const PORT = process.env.PORT || 5000;
-
-const server = app.listen(PORT, () => {
-    console.log(`🚀 Engine Active: http://localhost:${PORT}`);
-});
-
-// --- FIX EADDRINUSE (Ghost Process Handler) ---
-server.on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-        console.error(`❌ Port ${PORT} is busy. Cleaning up...`);
-        process.exit(1);
+        const group = req.query.group || 'job';
+        const categories = await Category.find({ group });
+        res.status(200).json({ categories });
+    } catch (err) {
+        res.status(500).json({ error: "Failed to fetch taxonomy" });
     }
+});
+
+/**
+ * 5. SYSTEM HEALTH & MONITORING
+ */
+app.get('/', (req, res) => {
+    res.send('TalentBD 2026 Engine API is Running...');
+});
+
+app.get('/api/health', (req, res) => {
+    const states = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
+    res.status(200).json({ 
+        status: 'Online', 
+        uptime: `${Math.floor(process.uptime())}s`,
+        database: states[mongoose.connection.readyState],
+        timestamp: new Date().toISOString()
+    });
+});
+
+// 404 Handler
+app.use((req, res) => {
+    res.status(404).json({ 
+        success: false, 
+        message: `TalentBD Engine: Endpoint ${req.originalUrl} not found.` 
+    });
+});
+
+/**
+ * 6. GLOBAL ERROR HANDLING
+ */
+app.use((err, req, res, next) => {
+    const statusCode = err.status || 500;
+    res.status(statusCode).json({ 
+        success: false, 
+        error: err.message || "Internal Server Error"
+    });
+});
+
+/**
+ * 7. SERVER INITIALIZATION
+ */
+const PORT = process.env.PORT || 5000;
+const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 TalentBD 2026 Engine Live on Port: ${PORT}`);
+});
+
+// Handle sudden crashes (like MongoDB timeouts)
+process.on('unhandledRejection', (err) => {
+    console.error(`🔴 Unhandled System Rejection: ${err.message}`);
+    // server.close(() => process.exit(1)); // Optional: keep alive on Render
 });

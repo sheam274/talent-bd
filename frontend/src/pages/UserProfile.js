@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { 
     User, FileText, Bookmark, Calendar, CheckCircle, AlertCircle, 
@@ -10,41 +10,63 @@ export default function UserProfile({ user, setUser, setView }) {
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [categories, setCategories] = useState([]);
     const [newCat, setNewCat] = useState('');
+    const hasFetched = useRef(false); // Prevents infinite loops/double fetches
+    
     const isAdmin = user?.role === 'admin' || user?.email === 'admin@talentbd.com';
 
-    // Sync window size for responsive layout adjustments
+    // 1. Stabilized fetch function
+    const fetchCategories = useCallback(async () => {
+        try {
+            const res = await axios.get('http://localhost:5000/api/categories');
+            const data = res.data.categories || (Array.isArray(res.data) ? res.data : []);
+            setCategories(data);
+        } catch (err) { 
+            console.warn("Category sync failed");
+            setCategories([]); 
+        }
+    }, []);
+
+    // 2. Effect for Layout & Data Sync
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 768);
         window.addEventListener('resize', handleResize);
-        if (isAdmin) fetchCategories();
-        return () => window.removeEventListener('resize', handleResize);
-    }, [isAdmin]);
-
-    // --- ADMIN CATEGORY MANAGEMENT ---
-    const fetchCategories = async () => {
-        try {
-            const res = await axios.get('http://localhost:5000/api/categories');
-            setCategories(res.data);
-        } catch (err) { console.warn("Syncing with local instance..."); }
-    };
-
-    const addCategory = async () => {
-        if (!newCat) return;
-        try {
-            await axios.post('http://localhost:5000/api/admin/categories', { name: newCat, group: 'global' });
-            setNewCat('');
+        
+        // Only fetch once or when admin status changes
+        if (isAdmin && !hasFetched.current) {
             fetchCategories();
-        } catch (err) { alert("Admin sync error"); }
+            hasFetched.current = true; 
+        }
+
+        return () => window.removeEventListener('resize', handleResize);
+    }, [isAdmin, fetchCategories]);
+
+    // 3. Admin Actions
+    const addCategory = async () => {
+        if (!newCat.trim()) return;
+        try {
+            const res = await axios.post('http://localhost:5000/api/admin/categories', { 
+                name: newCat.trim(), 
+                group: 'job' 
+            });
+            if (res.data.success) {
+                setNewCat('');
+                fetchCategories(); // Re-fetch after update
+            }
+        } catch (err) { 
+            alert("Admin sync error"); 
+        }
     };
 
     const deleteCategory = async (id) => {
         try {
             await axios.delete(`http://localhost:5000/api/admin/categories/${id}`);
             fetchCategories();
-        } catch (err) { console.error(err); }
+        } catch (err) { 
+            console.error("Delete failed:", err); 
+        }
     };
 
-    // Session Wall
+    // Session Guard
     if (!user) return (
         <div style={styles.loginWall}>
             <div style={styles.alertCircle}><AlertCircle size={40} color="#ef4444" /></div>
@@ -66,7 +88,7 @@ export default function UserProfile({ user, setUser, setView }) {
     return (
         <div style={{...styles.container, padding: isMobile ? '20px 15px' : '40px 25px'}}>
             
-            {/* 1. ADMIN INFRASTRUCTURE PANEL (Visible only to Admin) */}
+            {/* ADMIN PANEL */}
             {isAdmin && (
                 <div style={styles.adminSection}>
                     <div style={styles.adminHeader}>
@@ -76,9 +98,10 @@ export default function UserProfile({ user, setUser, setView }) {
                     <div style={{...styles.adminControls, flexDirection: isMobile ? 'column' : 'row'}}>
                         <input 
                             style={styles.adminInput} 
-                            placeholder="Add New Job/Learning Category..." 
+                            placeholder="Add New Job Category..." 
                             value={newCat}
                             onChange={(e) => setNewCat(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && addCategory()}
                         />
                         <button onClick={addCategory} style={styles.adminAddBtn}><Plus size={16}/> Sync Category</button>
                     </div>
@@ -94,22 +117,22 @@ export default function UserProfile({ user, setUser, setView }) {
                 </div>
             )}
 
-            {/* 2. DASHBOARD HEADER */}
+            {/* DASHBOARD HEADER */}
             <header style={{...styles.header, flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center'}}>
                 <div>
                     <div style={styles.topBadge}><LayoutDashboard size={12} /> PORTAL 2026</div>
                     <h1 style={{...styles.title, fontSize: isMobile ? '26px' : '32px'}}>Career Dashboard</h1>
-                    <p style={styles.subtitle}>Welcome, {user.name.split(' ')[0]}! Track your professional growth.</p>
+                    <p style={styles.subtitle}>Welcome, {user.name?.split(' ')[0]}! Track your professional growth.</p>
                 </div>
                 <button onClick={handleLogout} style={{...styles.logoutBtn, width: isMobile ? '100%' : 'auto'}}>
                     <LogOut size={16} /> Logout
                 </button>
             </header>
 
-            {/* 3. RESPONSIVE GRID */}
+            {/* MAIN GRID */}
             <div style={{...styles.dashboardGrid, gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(380px, 1fr))'}}>
                 
-                {/* CV STATUS CARD */}
+                {/* IDENTITY CARD */}
                 <div style={styles.card}>
                     <div style={styles.cardHeader}>
                         <div style={styles.iconBox}><ShieldCheck size={18} color="#2563eb" /></div>
@@ -147,7 +170,7 @@ export default function UserProfile({ user, setUser, setView }) {
                     </div>
                 </div>
 
-                {/* SAVED JOBS CARD */}
+                {/* BOOKMARKS CARD */}
                 <div style={styles.card}>
                     <div style={styles.cardHeader}>
                         <div style={{...styles.iconBox, background: '#fff7ed'}}><Bookmark size={18} color="#f59e0b" /></div>
@@ -157,23 +180,23 @@ export default function UserProfile({ user, setUser, setView }) {
                     <div style={styles.bookmarksList}>
                         {user.bookmarks && user.bookmarks.length > 0 ? (
                             user.bookmarks.map(j => (
-                                <div key={j._id} style={{...styles.itemStyle, flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '10px' : '0'}}>
+                                <div key={j._id} style={styles.itemStyle}>
                                     <div style={styles.jobInfo}>
-                                        <div style={{...styles.jobDot, background: j.status === 'active' ? '#10b981' : '#2563eb'}} />
+                                        <div style={{...styles.jobDot, background: '#10b981'}} />
                                         <div>
                                             <div style={styles.jobTitleText}>{j.title}</div>
-                                            <div style={{fontSize: '11px', color: '#94a3b8'}}>{j.skill} • ${j.reward}</div>
+                                            <div style={{fontSize: '11px', color: '#94a3b8'}}>{j.company || 'Global Talent'}</div>
                                         </div>
                                     </div>
-                                    <button onClick={() => setView('jobs')} style={{...styles.viewBtn, width: isMobile ? '100%' : 'auto'}}>
+                                    <button onClick={() => setView('jobs')} style={styles.viewBtn}>
                                         Apply <ExternalLink size={12} />
                                     </button>
                                 </div>
                             ))
                         ) : (
                             <div style={styles.emptyState}>
-                                <Bookmark size={32} color="#e2e8f0" style={{marginBottom:'15px'}} />
-                                <p style={{color: '#94a3b8', fontSize: '14px', margin:'0 0 15px'}}>No saved opportunities yet.</p>
+                                <Bookmark size={32} color="#e2e8f0" />
+                                <p style={{color: '#94a3b8', fontSize: '14px'}}>No saved opportunities yet.</p>
                                 <button onClick={() => setView('jobs')} style={styles.exploreLink}>Browse Gigs</button>
                             </div>
                         )}
@@ -197,7 +220,6 @@ const styles = {
     catWrap: { display: 'flex', flexWrap: 'wrap', gap: '10px' },
     catChip: { background: '#fff', padding: '8px 14px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid #e2e8f0', fontSize: '12px', fontWeight: '700' },
     trash: { color: '#ef4444', cursor: 'pointer', marginLeft: '5px' },
-    
     header: { display: 'flex', justifyContent: 'space-between', marginBottom: '40px', gap: '20px' },
     topBadge: { display: 'flex', alignItems: 'center', gap: '5px', color: '#2563eb', fontSize: '10px', fontWeight: '900', marginBottom: '8px', letterSpacing: '1px' },
     title: { fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1.5px' },
@@ -220,13 +242,13 @@ const styles = {
     progressBar: { height: '100%', transition: 'width 1s ease' },
     actionBtn: { width: '100%', padding: '16px', borderRadius: '16px', border: 'none', color: '#fff', fontWeight: '900', cursor: 'pointer' },
     bookmarksList: { display: 'flex', flexDirection: 'column' },
-    itemStyle: { display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f8fafc', padding: '15px 0' },
+    itemStyle: { display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f8fafc', padding: '15px 0', alignItems: 'center' },
     jobInfo: { display: 'flex', alignItems: 'center', gap: '15px' },
     jobDot: { width: '10px', height: '10px', borderRadius: '4px' },
     jobTitleText: { fontSize: '15px', fontWeight: '800', color: '#1e293b' },
     viewBtn: { background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', padding: '12px 18px', borderRadius: '14px', cursor: 'pointer', fontSize: '12px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' },
-    emptyState: { textAlign: 'center', padding: '40px 20px', background: '#fcfdfe', borderRadius: '24px', border: '2px dashed #e2e8f0' },
-    exploreLink: { background: '#2563eb', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer' },
+    emptyState: { textAlign: 'center', padding: '40px 20px', background: '#fcfdfe', borderRadius: '24px', border: '2px dashed #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' },
+    exploreLink: { background: '#2563eb', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' },
     loginWall: { textAlign: 'center', padding: '120px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' },
     alertCircle: { width: '80px', height: '80px', background: '#fef2f2', borderRadius: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '25px' }
 };

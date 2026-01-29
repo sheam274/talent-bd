@@ -1,0 +1,40 @@
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+
+/**
+ * verifyToken: Checks if the user is logged in via JWT
+ */
+const verifyToken = async (req, res, next) => {
+    let token;
+
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+        try {
+            token = req.headers.authorization.split(' ')[1];
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            
+            // Attach user to request (excluding password)
+            req.user = await User.findById(decoded.id).select('-password');
+            next();
+        } catch (error) {
+            console.error("❌ Auth Token Error:", error.message);
+            return res.status(401).json({ success: false, message: 'Not authorized, token failed' });
+        }
+    }
+
+    if (!token) {
+        return res.status(401).json({ success: false, message: 'Not authorized, no token' });
+    }
+};
+
+/**
+ * isAdmin: Checks if the logged-in user has admin privileges
+ */
+const isAdmin = (req, res, next) => {
+    if (req.user && req.user.role === 'admin') {
+        next();
+    } else {
+        res.status(403).json({ success: false, message: 'Access denied: Admins only' });
+    }
+};
+
+module.exports = { verifyToken, isAdmin };

@@ -1,68 +1,139 @@
 const express = require('express');
 const router = express.Router();
-const { Job, Category } = require('../models'); // SYNC: Accessing real database models
+const Job = require('../models/Job');
+const { verifyToken, isAdmin } = require('../middleware/authMiddleware'); // Ensure these exist
 
 /**
- * --- 1. CORE JOB FETCHING (Fixed & Enhanced) ---
- * Responsive to Category filtering from the Frontend Sidebar
+ * @route   GET /api/jobs
+ * @desc    Fetch official live jobs with advanced filtering & smart fallback
  */
 router.get('/', async (req, res) => {
     try {
-        const { category } = req.query;
-        let query = {};
+        const { category, search, location, isLive, isRemote, page = 1, limit = 15 } = req.query;
+        
+        const now = new Date();
+        now.setHours(0, 0, 0, 0); 
 
-        // If a category filter is active, apply it
-        if (category && category !== 'All') {
-            query.category = category;
+        // 1. BASE QUERY
+        let query = { 
+            isActive: true,
+            jobType: { $in: ['full-time', 'part-time', 'contract', 'internship', 'freelance'] } 
+        };
+
+        if (isLive === 'true') {
+            query.deadline = { $gte: now };
         }
 
-        const jobs = await Job.find(query).sort({ createdAt: -1 });
-        res.json(jobs);
+        const criteria = [];
+
+        // Remote Logic
+        if (isRemote === 'true') {
+            criteria.push({
+                $or: [
+                    { isRemote: true },
+                    { location: { $regex: /remote|worldwide/i, $options: 'i' } }
+                ]
+            });
+        }
+
+        // Location Regex
+        if (location && !['undefined', '', 'null'].includes(location)) {
+            criteria.push({ location: { $regex: location.trim(), $options: 'i' } });
+        }
+
+        // Global Search
+        if (search && search.trim() !== '' && search !== 'undefined') {
+            const escapedSearch = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(escapedSearch, 'i');
+            criteria.push({
+                $or: [
+                    { title: regex },
+                    { company: regex },
+                    { tags: { $in: [regex] } },
+                    { description: regex }
+                ]
+            });
+        }
+
+        // Category Filter (Flexible Regex)
+        if (category && !['All Sectors', 'All', 'undefined', '', 'null'].includes(category)) {
+            criteria.push({ category: { $regex: category.trim(), $options: 'i' } });
+        }
+
+        if (criteria.length > 0) {
+            query.$and = criteria;
+        }
+
+        // 2. EXECUTION
+        const pageNum = Math.max(1, parseInt(page));
+        const limitNum = Math.max(1, parseInt(limit));
+        
+        let [jobs, total] = await Promise.all([
+            Job.find(query)
+                .sort({ isFeatured: -1, createdAt: -1 })
+                .skip((pageNum - 1) * limitNum)
+                .limit(limitNum)
+                .populate('categoryRef') 
+                .lean(),
+            Job.countDocuments(query)
+        ]);
+
+        // 3. FALLBACK: If no results, show 4 most recent live jobs
+        if (jobs.length === 0) {
+            const suggestions = await Job.find({ isActive: true, deadline: { $gte: now } })
+                .sort({ createdAt: -1 })
+                .limit(4)
+                .lean();
+            
+            return res.json({
+                success: true,
+                isSuggested: suggestions.length > 0,
+                jobs: suggestions,
+                meta: { total: suggestions.length, page: 1, totalPages: 1 }
+            });
+        }
+
+        res.json({
+            success: true,
+            meta: { total, page: pageNum, totalPages: Math.ceil(total / limitNum) },
+            jobs 
+        });
+
     } catch (err) {
-        res.status(500).json({ error: "Failed to fetch jobs from database" });
+        console.error("❌ Job Fetch Error:", err);
+        res.status(500).json({ success: false, error: "Internal Server Error" });
     }
 });
 
 /**
- * --- 2. ADMIN FEATURE: DYNAMIC CATEGORY MANAGEMENT ---
- * Option for admin to add or delete categories for job and learning
+ * @route   POST /api/jobs/create
+ * @desc    Admin only: Deploy a new job vacancy
  */
-
-// ADD: Admin creates a new category (e.g., "Cybersecurity" for "job")
-router.post('/categories/add', async (req, res) => {
+router.post('/create', verifyToken, isAdmin, async (req, res) => {
     try {
-        const { name, group } = req.body; // group should be 'job' or 'learning'
-        if (!name || !group) return res.status(400).json({ error: "Name and Group required" });
-
-        const newCategory = new Category({ name, group });
-        await newCategory.save();
+        const jobData = req.body;
         
-        res.status(201).json({ success: true, message: "Category added successfully", newCategory });
-    } catch (err) {
-        res.status(400).json({ error: "Category already exists or invalid data" });
-    }
-});
+        // Ensure jobType is lowercase to match filtering logic
+        if (jobData.jobType) jobData.jobType = jobData.jobType.toLowerCase();
 
-// DELETE: Admin removes a category
-router.delete('/categories/:id', async (req, res) => {
-    try {
-        const categoryId = req.params.id;
-        await Category.findByIdAndDelete(categoryId);
-        res.json({ success: true, message: "Category deleted from platform" });
-    } catch (err) {
-        res.status(500).json({ error: "Failed to delete category" });
-    }
-});
+        const newJob = new Job({
+            ...jobData,
+            isActive: true
+        });
 
-// GET: Fetch categories specifically for the Job Board or Learning Hub
-router.get('/categories/list', async (req, res) => {
-    try {
-        const { group } = req.query; // 'job' or 'learning'
-        const filter = group ? { group } : {};
-        const categories = await Category.find(filter).sort({ name: 1 });
-        res.json(categories);
+        const savedJob = await newJob.save();
+        
+        res.status(201).json({
+            success: true,
+            message: "Vacancy deployed to TalentBD board.",
+            job: savedJob
+        });
     } catch (err) {
-        res.status(500).json({ error: "Error fetching category list" });
+        console.error("❌ Job Creation Error:", err);
+        res.status(400).json({ 
+            success: false, 
+            message: err.message || "Failed to create vacancy. check all required fields." 
+        });
     }
 });
 

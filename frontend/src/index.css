@@ -10,13 +10,18 @@
   --text-main: #0f172a;
   --text-muted: #64748b;
   --border: #e2e8f0;
+  
+  /* Modern Border Radii */
   --radius-lg: 1.25rem; /* 20px */
   --radius-md: 0.75rem; /* 12px */
-  --radius-xl: 2.5rem;  /* 40px - For Main Hero & Wallets */
+  --radius-xl: 2.5rem;  /* 40px */
+  
+  /* Elevation & Glassmorphism */
   --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
   --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
   --glass-bg: rgba(255, 255, 255, 0.75);
   --nav-height: 80px;
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* --- RESET & HP-840 OPTIMIZATION --- */
@@ -25,6 +30,15 @@
   margin: 0;
   padding: 0;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Fluid Typography for 14" HP Displays */
+html {
+  font-size: 16px;
+}
+
+@media screen and (max-width: 1440px) {
+  html { font-size: 15px; } /* Slightly reduces scale for 14" laptop screens */
 }
 
 body {
@@ -37,39 +51,10 @@ body {
   overflow-x: hidden;
 }
 
-/* --- ADMIN CATEGORY & SYSTEM UTILITIES (NEW) --- */
-.admin-hub-card {
-  background: #ffffff;
-  border: 2px dashed var(--primary);
-  border-radius: var(--radius-lg);
-  padding: 24px;
-  margin-bottom: 30px;
-  box-shadow: var(--shadow-sm);
-}
-
-.category-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  background: #f1f5f9;
-  border-radius: 50px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-main);
-  border: 1px solid var(--border);
-  transition: var(--transition);
-}
-
-.category-pill:hover {
-  border-color: var(--danger);
-  color: var(--danger);
-}
-
 /* --- LAYOUT ARCHITECTURE --- */
 .container {
   width: 100%;
-  max-width: 1320px; /* Perfect breathing room for HP-840 screens */
+  max-width: 1320px; 
   margin: 0 auto;
   padding: 0 clamp(1rem, 4vw, 2.5rem);
 }
@@ -77,129 +62,160 @@ body {
 .sidebar-layout {
   display: grid;
   grid-template-columns: 280px 1fr;
-  gap: 40px;
+  gap: 30px;
   align-items: start;
 }
 
 .grid-layout {
   display: grid;
-  gap: 2rem;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 350px), 1fr));
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
 }
 
-/* --- TYPOGRAPHY --- */
-h1, h2, h3, h4 {
-  font-weight: 950; /* Ultra-bold for 2026 aesthetics */
-  letter-spacing: -0.05em;
+/* --- ADMIN & TAXONOMY UI --- */
+.admin-hub-card {
+  background: #ffffff;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-bottom: 30px;
+  transition: var(--transition);
+}
+
+.admin-hub-card:hover {
+  border-color: var(--primary);
+  background: var(--primary-glass);
+}
+
+.category-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #ffffff;
+  border-radius: 50px;
+  font-size: 13px;
+  font-weight: 700;
   color: var(--text-main);
-  line-height: 1.1;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.category-pill:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+  transform: scale(0.95);
+}
+
+/* --- TYPOGRAPHY & HEADINGS --- */
+h1, h2, h3, h4 {
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  color: var(--text-main);
+  line-height: 1.2;
 }
 
 .hero-text {
-  font-size: clamp(2.5rem, 8vw, 4.5rem);
-  background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+  font-size: clamp(2.2rem, 6vw, 4rem);
+  background: linear-gradient(135deg, #0f172a 0%, #2563eb 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  font-weight: 1000;
 }
 
-/* --- SHARED COMPONENTS --- */
+/* --- CARD SYSTEM --- */
 .card-modern {
   background: #ffffff;
   border-radius: var(--radius-xl);
   border: 1px solid var(--border);
-  padding: 2rem;
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  padding: 1.5rem;
+  transition: var(--transition);
   box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
 }
 
 .card-modern:hover {
-  transform: translateY(-8px) scale(1.01);
+  transform: translateY(-5px);
   box-shadow: var(--shadow-xl);
   border-color: var(--primary);
 }
 
 .glass-panel {
   background: var(--glass-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: var(--radius-lg);
 }
 
-/* --- BUTTON SYSTEM --- */
+/* --- INTERACTIVE ELEMENTS --- */
 .btn-primary {
   background: var(--primary);
   color: white;
-  padding: 14px 28px;
-  border-radius: 14px;
-  font-weight: 800;
+  padding: 12px 24px;
+  border-radius: var(--radius-md);
+  font-weight: 750;
   border: none;
   cursor: pointer;
-  box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.4);
-  transition: all 0.3s ease;
+  transition: var(--transition);
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  gap: 8px;
 }
 
 .btn-primary:hover {
   background: var(--primary-hover);
-  transform: translateY(-2px);
-  box-shadow: 0 15px 25px -5px rgba(37, 99, 235, 0.5);
+  transform: translateY(-1px);
 }
 
-.btn-ghost {
-  background: transparent;
-  color: var(--text-muted);
-  font-weight: 700;
-  padding: 10px 20px;
-  border: 1px solid transparent;
-  transition: 0.2s;
+.input-field {
+  width: 100%;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: #fcfdfe;
+  font-size: 14px;
+  transition: var(--transition);
 }
 
-.btn-ghost:hover {
-  background: var(--primary-glass);
-  color: var(--primary);
-  border-radius: 10px;
+.input-field:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--primary-glass);
 }
 
 /* --- STATUS & BADGES --- */
 .badge-verified {
   background: #f0fdf4;
   color: var(--success);
-  padding: 4px 12px;
+  padding: 4px 10px;
   border-radius: 50px;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 900;
   text-transform: uppercase;
   border: 1px solid #bbf7d0;
 }
 
-/* --- MOBILE RESPONSIVITY --- */
-@media (max-width: 1024px) {
-  .sidebar-layout {
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
-}
-
-@media (max-width: 768px) {
-  .hero-text { font-size: 2.8rem; }
-  .container { padding: 0 1.5rem; }
-  .grid-layout { grid-template-columns: 1fr; }
-  
-  .hide-on-mobile { display: none !important; }
-  
-  /* Mobile Bottom Navigation Space */
-  body { padding-bottom: 80px; } 
-}
-
-/* --- CUSTOM SCROLLBAR --- */
-::-webkit-scrollbar { width: 10px; }
+/* --- SCROLLBAR DESIGN --- */
+::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: var(--bg-main); }
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 10px;
-  border: 3px solid var(--bg-main);
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* --- MOBILE RESPONSIVITY --- */
+@media (max-width: 1024px) {
+  .sidebar-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .hide-on-mobile { display: none !important; }
+  body { padding-bottom: 70px; } /* Space for mobile nav */
+}
