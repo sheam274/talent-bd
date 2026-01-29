@@ -9,8 +9,8 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "server": "cross-env NODE_ENV=development nodemon server/index.js",
-    "dev": "concurrently -n \"Frontend,Backend\" -c \"blue,green\" \"npm start\" \"wait-on http://localhost:5000/api/health && npm run server\"",
+    "server": "cross-env NODE_ENV=development nodemon server.js",
+    "dev": "concurrently -n \"Frontend,Backend\" -c \"blue,green\" \"npm start\" \"npm run server\"",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
@@ -33,7 +33,9 @@
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
     "clsx": "^2.1.0",
-    "tailwind-merge": "^2.2.1"
+    "tailwind-merge": "^2.2.1",
+    "morgan": "^1.10.0",
+    "helmet": "^7.1.0"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
