@@ -18,23 +18,24 @@
     "eject": "react-scripts eject"
   },
   "dependencies": {
+    "axios": "^1.7.9",
+    "canvas-confetti": "^1.9.3",
+    "clsx": "^2.1.1",
+    "cors": "^2.8.6",
+    "framer-motion": "^12.29.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.2",
+    "lucide-react": "^0.563.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-scripts": "^5.0.1",
-    "framer-motion": "^12.29.0",
-    "lucide-react": "^0.563.0",
-    "axios": "^1.7.9",
-    "canvas-confetti": "^1.9.3",
-    "html2canvas": "^1.4.1",
-    "jspdf": "^2.5.2",
-    "clsx": "^2.1.1",
     "tailwind-merge": "^2.5.2"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
-    "wait-on": "^7.2.0",
-    "nodemon": "^3.1.0"
+    "nodemon": "^3.1.0",
+    "wait-on": "^7.2.0"
   },
   "repository": {
     "type": "git",

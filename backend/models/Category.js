@@ -52,7 +52,8 @@ const CategorySchema = new mongoose.Schema({
 });
 
 // --- 1. PERFORMANCE INDEXING ---
-// Ensures "Design" can be a Job category AND a Learning category simultaneously
+// Unique compound index: prevents duplicate names within the SAME group
+// This allows "Marketing" to exist in BOTH 'job' and 'learning'
 CategorySchema.index({ name: 1, group: 1 }, { unique: true });
 CategorySchema.index({ slug: 1, group: 1 }, { unique: true });
 
@@ -69,7 +70,6 @@ CategorySchema.pre('validate', function(next) {
     }
 
     // B. Smart Icon & Color Mapping
-    // This saves time for admins by auto-assigning styles based on name keywords
     const iconMap = {
         'code': { icon: 'Code', color: '#2563eb' },
         'software': { icon: 'Cpu', color: '#2563eb' },
@@ -80,15 +80,17 @@ CategorySchema.pre('validate', function(next) {
         'money': { icon: 'Wallet', color: '#10b981' },
         'data': { icon: 'BarChart3', color: '#3b82f6' },
         'writer': { icon: 'PenTool', color: '#ec4899' },
-        'remote': { icon: 'Globe', color: '#6366f1' }
+        'remote': { icon: 'Globe', color: '#6366f1' },
+        'govt': { icon: 'Shield', color: '#0f172a' },
+        'educat': { icon: 'BookOpen', color: '#f59e0b' }
     };
 
     const lowerName = this.name.toLowerCase();
     for (const [key, value] of Object.entries(iconMap)) {
         if (lowerName.includes(key)) {
-            // Only auto-assign if it's the default value (prevents overwriting custom admin input)
-            if (this.icon === 'Briefcase') this.icon = value.icon;
-            if (this.color === '#2563eb') this.color = value.color;
+            // Only auto-assign if the admin hasn't provided custom values
+            if (this.icon === 'Briefcase' || !this.icon) this.icon = value.icon;
+            if (this.color === '#2563eb' || !this.color) this.color = value.color;
             break;
         }
     }
@@ -96,7 +98,6 @@ CategorySchema.pre('validate', function(next) {
 });
 
 // --- 3. VIRTUALS ---
-// Virtual property for frontend styling without bloating the database
 CategorySchema.virtual('themeStyle').get(function() {
     return {
         background: this.group === 'job' ? 'rgba(37, 99, 235, 0.08)' : 'rgba(16, 185, 129, 0.08)',
@@ -105,4 +106,5 @@ CategorySchema.virtual('themeStyle').get(function() {
     };
 });
 
-module.exports = mongoose.model('Category', CategorySchema);
+// Avoid "Model overwrite" error in development (localhost)
+module.exports = mongoose.models.Category || mongoose.model('Category', CategorySchema);
