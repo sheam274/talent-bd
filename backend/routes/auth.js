@@ -1,13 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User'); 
 const Category = require('../models/Category');
 
+// Helper: Generate JWT Token
+const generateToken = (id, role) => {
+    return jwt.sign(
+        { id, role },
+        process.env.JWT_SECRET || 'talentbd_secret_key_2026',
+        { expiresIn: '7d' }
+    );
+};
+
 /**
  * 🛡️ MIDDLEWARE: JWT & ROLE VERIFICATION
- * Protects administrative routes from unauthorized access.
  */
 const verifyAdmin = (req, res, next) => {
     try {
@@ -32,6 +39,52 @@ const verifyAdmin = (req, res, next) => {
 };
 
 /**
+ * 📝 SIGNUP ROUTE
+ * Fixed: Explicitly handles user creation and returns token.
+ */
+router.post('/signup', async (req, res) => {
+    try {
+        const { name, email, password, role } = req.body;
+
+        // 1. Validation (matches User Model requirements)
+        if (!name || !email || !password) {
+            return res.status(400).json({ success: false, message: "Name, email, and password are required" });
+        }
+
+        // 2. Check for existing user
+        const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
+        if (existingUser) {
+            return res.status(400).json({ success: false, message: "Email already registered" });
+        }
+
+        // 3. Create new user (Password hashing is handled in User Model middleware)
+        const user = await User.create({
+            name,
+            email: email.toLowerCase().trim(),
+            password,
+            role: role || 'user'
+        });
+
+        // 4. Generate Token
+        const token = generateToken(user._id, user.role);
+
+        // 5. Response
+        const userObj = user.toObject();
+        delete userObj.password;
+
+        res.status(201).json({
+            success: true,
+            user: { ...userObj, token },
+            message: "Account created successfully"
+        });
+
+    } catch (err) {
+        console.error("🔥 Signup Error:", err);
+        res.status(400).json({ success: false, error: err.message || "Registration failed" });
+    }
+});
+
+/**
  * 🔑 LOGIN ROUTE
  * Handles authentication and initial data synchronization.
  */
@@ -54,31 +107,25 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ success: false, message: "Invalid email or password" });
         }
 
-        const isMatch = await bcrypt.compare(password, user.password);
+        // 3. Compare password using the method in User Model
+        const isMatch = await user.comparePassword(password);
         if (!isMatch) {
             return res.status(401).json({ success: false, message: "Invalid email or password" });
         }
 
-        // 3. Fetch Platform Taxonomy for Frontend Sync
+        // 4. Fetch Platform Taxonomy for Frontend Sync
         const platformCategories = await Category.find({ isActive: true }).sort({ priority: -1 });
 
-        // 4. Generate Session Token
-        const token = jwt.sign(
-            { id: user._id, role: user.role },
-            process.env.JWT_SECRET || 'talentbd_secret_key_2026',
-            { expiresIn: '7d' }
-        );
+        // 5. Generate Session Token
+        const token = generateToken(user._id, user.role);
 
-        // 5. Cleanse User Object (Security)
+        // 6. Cleanse User Object
         const userObj = user.toObject();
         delete userObj.password;
 
         res.status(200).json({
             success: true,
-            user: { 
-                ...userObj, 
-                token
-            },
+            user: { ...userObj, token },
             categories: platformCategories 
         });
 
@@ -112,19 +159,6 @@ router.post('/admin/categories', verifyAdmin, async (req, res) => {
         res.status(201).json({ success: true, category: newCat });
     } catch (err) {
         res.status(400).json({ success: false, error: err.message || "Category creation failed" });
-    }
-});
-
-// Delete Category
-router.delete('/admin/categories/:id', verifyAdmin, async (req, res) => {
-    try {
-        const deleted = await Category.findByIdAndDelete(req.params.id);
-        if (!deleted) {
-            return res.status(404).json({ success: false, message: "Category not found" });
-        }
-        res.json({ success: true, message: "Category removed from platform" });
-    } catch (err) {
-        res.status(500).json({ success: false, error: "Delete operation failed" });
     }
 });
 

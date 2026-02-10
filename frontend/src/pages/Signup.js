@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
-    User, Mail, Lock, Rocket, ChevronRight, CheckCircle2, 
-    AlertCircle, ShieldCheck, Sparkles, Layers, Plus, Trash2 
+    User, Mail, Lock, Rocket, CheckCircle2, 
+    AlertCircle, ShieldCheck, Layers, Plus, Trash2 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -30,64 +30,77 @@ export default function Signup({ setView }) {
     const fetchCategories = async () => {
         try {
             const res = await axios.get('http://localhost:5000/api/categories');
-            setCategories(res.data);
-        } catch (err) { console.warn("Waiting for Node.js sync..."); }
+            // Backend returns { success: true, categories: [...] }
+            setCategories(res.data.categories || []);
+        } catch (err) { 
+            console.warn("Category sync pending..."); 
+        }
+    };
+
+    const getAdminHeaders = () => {
+        const user = JSON.parse(localStorage.getItem('talent_user'));
+        return { headers: { Authorization: `Bearer ${user?.token}` } };
     };
 
     const addCategory = async () => {
         if (!newCat) return;
         try {
-            await axios.post('http://localhost:5000/api/admin/categories', { name: newCat, group: 'global' });
+            await axios.post('http://localhost:5000/api/auth/admin/categories', 
+                { name: newCat, group: 'job' }, 
+                getAdminHeaders()
+            );
             setNewCat('');
             fetchCategories();
-        } catch (err) { alert("Admin sync error"); }
+        } catch (err) { 
+            alert(err.response?.data?.message || "Admin clearance required to sync ecosystem."); 
+        }
     };
 
     const deleteCategory = async (id) => {
         try {
-            await axios.delete(`http://localhost:5000/api/admin/categories/${id}`);
+            await axios.delete(`http://localhost:5000/api/auth/admin/categories/${id}`, getAdminHeaders());
             fetchCategories();
         } catch (err) { console.error(err); }
     };
 
+    // --- AUTH LOGIC ---
     const handleSignup = async (e) => {
         e.preventDefault();
         setLoading(true);
         setServerError("");
         
         try {
-            const res = await fetch('http://localhost:5000/api/signup', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: formData.name.trim(),
-                    email: formData.email.toLowerCase().trim(),
-                    password: formData.password
-                })
+            // FIXED: Path changed to /api/auth/signup to match backend
+            const response = await axios.post('http://localhost:5000/api/auth/signup', {
+                name: formData.name.trim(),
+                email: formData.email.toLowerCase().trim(),
+                password: formData.password
             });
-            const data = await res.json();
-            if (res.ok) {
+
+            if (response.data.success) {
+                // Save user and token for immediate session
+                localStorage.setItem('talent_user', JSON.stringify(response.data.user));
                 setIsSuccess(true);
                 setTimeout(() => setView('login'), 2500);
-            } else {
-                setServerError(data.error || "Signup failed.");
             }
         } catch (err) {
-            setServerError("Cloud Sync Offline: Connect to Node.js Port 5000.");
+            const msg = err.response?.data?.message || err.response?.data?.error || "Signup failed.";
+            setServerError(msg);
         } finally {
             setLoading(false);
         }
     };
 
+    // (UI rendering logic below remains mostly same as your provided styles)
     if (isSuccess) {
         return (
             <div style={styles.container}>
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{...styles.card, textAlign: 'center', padding: isMobile ? '40px 20px' : '60px 40px'}}>
-                    <motion.div animate={{ rotate: [0, -10, 10, 0] }} transition={{ repeat: Infinity, duration: 2 }} style={styles.successIcon}>
+                    <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 2 }} style={styles.successIcon}>
                         <CheckCircle2 size={40} color="#fff" />
                     </motion.div>
                     <h2 style={{margin: '0 0 12px 0', fontSize: isMobile ? '24px' : '28px', fontWeight: '900'}}>Welcome Aboard!</h2>
-                    <p style={{color: '#64748b'}}>Redirecting to secure login...</p>
+                    <p style={{color: '#64748b'}}>Identity verified. Redirecting to TalentBD Hub...</p>
                 </motion.div>
             </div>
         );
@@ -96,7 +109,6 @@ export default function Signup({ setView }) {
     return (
         <div style={{...styles.container, padding: isMobile ? '20px 15px' : '40px', flexDirection: isMobile ? 'column' : 'row'}}>
             
-            {/* MAIN SIGNUP CARD */}
             <div style={{
                 ...styles.card, 
                 padding: isMobile ? '40px 24px' : '48px 40px',
@@ -111,7 +123,7 @@ export default function Signup({ setView }) {
 
                 <AnimatePresence mode="wait">
                     {serverError && (
-                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} style={styles.errorBanner}>
+                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={styles.errorBanner}>
                             <AlertCircle size={18} /> <span>{serverError}</span>
                         </motion.div>
                     )}
@@ -143,7 +155,7 @@ export default function Signup({ setView }) {
                     </div>
 
                     <button type="submit" style={{...styles.btn, background: loading ? '#64748b' : '#0f172a'}} disabled={loading}>
-                        {loading ? "Establishing ID..." : "Get Started"} <Rocket size={20} />
+                        {loading ? "Establishing ID..." : "Get Started"} <Rocket size={20} style={{marginLeft: '10px'}} />
                     </button>
                 </form>
 
@@ -155,15 +167,15 @@ export default function Signup({ setView }) {
                 </div>
             </div>
 
-            {/* ADMIN CATEGORY ARCHITECT (Responsive reveal on side or bottom) */}
+            {/* ADMIN PANEL */}
             {showAdminSync && (
-                <div style={{...styles.adminPanel, marginLeft: isMobile ? 0 : '30px', marginTop: isMobile ? '20px' : 0}}>
+                <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{...styles.adminPanel, marginLeft: isMobile ? 0 : '30px', marginTop: isMobile ? '20px' : 0}}>
                     <div style={styles.adminHeader}>
                         <Layers size={18} color="#2563eb" />
                         <h4 style={{margin:0}}>Global Categories</h4>
                     </div>
                     <div style={styles.adminInputs}>
-                        <input style={styles.adminInput} placeholder="New Skill/Job Tag..." value={newCat} onChange={e => setNewCat(e.target.value)} />
+                        <input style={styles.adminInput} placeholder="New Tag..." value={newCat} onChange={e => setNewCat(e.target.value)} />
                         <button onClick={addCategory} style={styles.adminAddBtn}><Plus size={16}/></button>
                     </div>
                     <div style={styles.catScroll}>
@@ -174,12 +186,13 @@ export default function Signup({ setView }) {
                             </div>
                         ))}
                     </div>
-                </div>
+                </motion.div>
             )}
         </div>
     );
 }
 
+// (Maintain your existing styles object here)
 const styles = {
     container: { minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#f8fafc' },
     card: { background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.08)', position: 'relative' },
@@ -193,7 +206,7 @@ const styles = {
     inputWrapper: { position: 'relative', display: 'flex', alignItems: 'center', border: '1px solid #e2e8f0', borderRadius: '16px' },
     fieldIcon: { position: 'absolute', left: '18px' },
     input: { width: '100%', padding: '18px 18px 18px 52px', borderRadius: '16px', border: 'none', fontSize: '15px', outline: 'none' },
-    btn: { width: '100%', padding: '18px', color: '#fff', border: 'none', borderRadius: '18px', cursor: 'pointer', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' },
+    btn: { width: '100%', padding: '18px', color: '#fff', border: 'none', borderRadius: '18px', cursor: 'pointer', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center' },
     footer: { marginTop: '35px', textAlign: 'center' },
     footerText: { fontSize: '15px', color: '#64748b', fontWeight: '600' },
     link: { color: '#2563eb', fontWeight: '900', cursor: 'pointer', textDecoration: 'underline' },
@@ -202,7 +215,7 @@ const styles = {
     adminHeader: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' },
     adminInputs: { display: 'flex', gap: '10px', marginBottom: '15px' },
     adminInput: { flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #e2e8f0' },
-    adminAddBtn: { background: '#0f172a', color: '#fff', border: 'none', width: '40px', borderRadius: '10px', cursor: 'pointer' },
+    adminAddBtn: { background: '#0f172a', color: '#fff', border: 'none', width: '40px', borderRadius: '10px', cursor: 'pointer', display:'flex', alignItems:'center', justifyContent:'center' },
     catScroll: { maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' },
     catItem: { display: 'flex', justifyContent: 'space-between', padding: '10px', background: '#f8fafc', borderRadius: '8px', fontSize: '13px', fontWeight: '600' },
     successIcon: { background: '#10b981', width: '80px', height: '80px', borderRadius: '25px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' },

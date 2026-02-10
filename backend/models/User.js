@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema({
         type: String, 
         required: [true, 'Password is required'],
         minlength: [6, 'Password must be at least 6 characters'],
-        select: false // Automatically excludes password from queries like User.find()
+        select: false // Hidden by default for security
     },
     
     role: { 
@@ -44,7 +44,7 @@ const userSchema = new mongoose.Schema({
         appliedAt: { type: Date, default: Date.now }
     }],
 
-    // --- FINTECH & GAMIFICATION ---
+    // --- FINTECH & GAMIFICATION (TalentBD Verify-to-Earn) ---
     walletBalance: { type: Number, default: 0, min: [0, 'Balance cannot be negative'] },
     points: { type: Number, default: 0, min: [0, 'Points cannot be negative'] }, 
     
@@ -61,13 +61,14 @@ const userSchema = new mongoose.Schema({
     toObject: { virtuals: true }
 });
 
-// --- 1. VIRTUALS (For UI convenience) ---
+// --- 1. VIRTUALS ---
 userSchema.virtual('avatar').get(function() {
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(this.name)}&background=random`;
 });
 
 // --- 2. PASSWORD HASHING MIDDLEWARE ---
 userSchema.pre('save', async function(next) {
+    // Only hash the password if it has been modified (or is new)
     if (!this.isModified('password')) return next();
     
     try {
@@ -79,7 +80,7 @@ userSchema.pre('save', async function(next) {
     }
 });
 
-// --- 3. FINTECH PROTECTION MIDDLEWARE ---
+// --- 3. FINTECH PROTECTION ---
 userSchema.pre('save', function(next) {
     if (this.points < 0) this.points = 0;
     if (this.walletBalance < 0) this.walletBalance = 0;
@@ -87,10 +88,11 @@ userSchema.pre('save', function(next) {
 });
 
 // --- 4. INSTANCE METHODS ---
-// Used for Login: const isMatch = await user.comparePassword(enteredPassword);
 userSchema.methods.comparePassword = async function(enteredPassword) {
-    // Note: Since 'password' has select: false, ensure you .select('+password') in your login route
+    // IMPORTANT: Since password has select:false, you must use 
+    // .select('+password') in your login controller before calling this.
     return await bcrypt.compare(enteredPassword, this.password);
 };
 
-module.exports = mongoose.model('User', userSchema);
+// --- 5. PREVENT MODEL RE-COMPILATION ERROR (Fix for Localhost) ---
+module.exports = mongoose.models.User || mongoose.model('User', userSchema);
