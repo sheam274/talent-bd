@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
+import { io } from 'socket.io-client'; // 1. Import Socket.io Client
 import { Briefcase, MapPin, Calendar, DollarSign, XCircle, CheckCircle } from 'lucide-react';
 
 // Dynamic API detection for 2026 Environment
-const API_BASE = window.location.hostname === 'localhost' 
-    ? "http://localhost:5000/api" 
-    : "https://talent-bd-backend.onrender.com/api";
+const SOCKET_URL = window.location.hostname === 'localhost' 
+    ? "http://localhost:5000" 
+    : "https://talent-bd-backend.onrender.com";
+
+const API_BASE = `${SOCKET_URL}/api`;
 
 export default function AdminPostJob({ user, setView }) {
     const [formData, setFormData] = useState({
@@ -24,23 +27,32 @@ export default function AdminPostJob({ user, setView }) {
     const [categories, setCategories] = useState([]);
     const [status, setStatus] = useState({ type: '', msg: '' });
     const [loading, setLoading] = useState(false);
+    
+    // 2. Reference for the socket connection
+    const socket = useRef(null);
 
-    // --- 1. SYNC CATEGORIES FROM BACKEND ---
+    // --- SYNC CATEGORIES & INITIALIZE SOCKET ---
     useEffect(() => {
+        // Initialize Socket
+        socket.current = io(SOCKET_URL);
+
         const fetchCats = async () => {
             try {
-                // Fetching specifically the 'job' group sectors
                 const res = await axios.get(`${API_BASE}/categories?group=job`);
-                
-                // Extracting the array correctly from your standard response pattern
                 const catList = res.data.categories || (Array.isArray(res.data) ? res.data : []);
                 setCategories(catList);
             } catch (err) {
                 console.error("❌ Taxonomy Engine Offline:", err);
-                setStatus({ type: 'error', msg: 'Could not load Industry Sectors. Please check backend.' });
+                setStatus({ type: 'error', msg: 'Could not load Industry Sectors.' });
             }
         };
+        
         fetchCats();
+
+        // Cleanup on unmount
+        return () => {
+            if (socket.current) socket.current.disconnect();
+        };
     }, []);
 
     const handleChange = (e) => {
@@ -66,27 +78,30 @@ export default function AdminPostJob({ user, setView }) {
                 } 
             };
             
-            // RELATIONAL LINKING: Map the selected string name back to its MongoDB ObjectID
             const selectedCatDoc = categories.find(c => c.name === formData.category);
             
             const submissionData = {
                 ...formData,
-                categoryRef: selectedCatDoc?._id, // This enables advanced filtering
+                categoryRef: selectedCatDoc?._id,
                 isActive: true
             };
 
-            // Using the /admin/jobs route to trigger isAdmin middleware checks
             const res = await axios.post(`${API_BASE}/admin/jobs`, submissionData, config);
 
             if (res.data.success) {
-                setStatus({ type: 'success', msg: '🚀 Vacancy successfully deployed to TalentBD board!' });
-                // Redirect to job feed after success
+                // 3. BROADCAST THE NEW JOB VIA WEBSOCKET
+                // This triggers the 'receive_job_alert' on all other users' screens
+                if (socket.current) {
+                    socket.current.emit('new_job_posted', res.data.job);
+                }
+
+                setStatus({ type: 'success', msg: '🚀 Vacancy successfully deployed and broadcasted!' });
                 setTimeout(() => setView('jobs'), 2000);
             }
         } catch (err) {
             setStatus({ 
                 type: 'error', 
-                msg: err.response?.data?.message || "Deployment failed. Check all required fields." 
+                msg: err.response?.data?.message || "Deployment failed." 
             });
         } finally {
             setLoading(false);
@@ -140,13 +155,9 @@ export default function AdminPostJob({ user, setView }) {
                             onChange={handleChange}
                         >
                             <option value="">-- Select Sector --</option>
-                            {categories.length > 0 ? (
-                                categories.map(cat => (
-                                    <option key={cat._id} value={cat.name}>{cat.name}</option>
-                                ))
-                            ) : (
-                                <option disabled>No Sectors Found (Syncing...)</option>
-                            )}
+                            {categories.map(cat => (
+                                <option key={cat._id} value={cat.name}>{cat.name}</option>
+                            ))}
                         </select>
                     </div>
 
@@ -188,7 +199,7 @@ export default function AdminPostJob({ user, setView }) {
                             value={formData.description} 
                             required 
                             style={{ ...styles.input, height: '150px', resize: 'none' }} 
-                            placeholder="Paste the full job responsibilities and technical requirements here..."
+                            placeholder="Full details here..."
                             onChange={handleChange}
                         />
                     </div>
@@ -197,7 +208,7 @@ export default function AdminPostJob({ user, setView }) {
                         ...styles.submitBtn,
                         backgroundColor: loading ? '#94a3b8' : '#2563eb'
                     }}>
-                        {loading ? 'Deploying to TalentBD...' : 'Publish Vacancy Now'}
+                        {loading ? 'Deploying to TalentBD...' : 'Publish & Broadcast Vacancy'}
                     </button>
                 </form>
             </div>

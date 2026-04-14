@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import axios from 'axios';
-import { Plus, Trash2, Shield, Briefcase, GraduationCap } from 'lucide-react'; 
+import { io } from 'socket.io-client'; 
+import { Plus, Trash2, Shield, Briefcase, GraduationCap, Bell, Users } from 'lucide-react'; 
 
 // Component Imports
 import Navbar from './components/Navbar';
@@ -20,9 +21,11 @@ import AdminPostJob from './pages/AdminPostJob';
 // Utility Import
 import { theme } from './theme';
 
-const API_BASE = window.location.hostname === 'localhost' 
-    ? "http://localhost:5000/api" 
-    : "https://talent-bd-backend.onrender.com/api";
+const SOCKET_URL = window.location.hostname === 'localhost' 
+    ? "http://localhost:5000" 
+    : "https://talent-bd-backend.onrender.com";
+
+const API_BASE = `${SOCKET_URL}/api`;
 
 export default function App() {
     // 1. User Persistence & Auth
@@ -43,14 +46,18 @@ export default function App() {
     const [allJobs, setAllJobs] = useState([]);
     const [allCourses, setAllCourses] = useState([]);
     
-    // 4. Admin Helpers
+    // 4. Live States (Sockets)
+    const [liveAlert, setLiveAlert] = useState(null);
+    const [onlineCount, setOnlineCount] = useState(0); // Tracking live users
+
+    // 5. Admin Helpers
     const [newCatName, setNewCatName] = useState('');
     const [newCatGroup, setNewCatGroup] = useState('job');
     const isSyncing = useRef(false);
+    const socket = useRef(null); 
 
     /**
      * CORE SYNC ENGINE
-     * Implements Parallel Fetching for the 2026 Talent Ecosystem.
      */
     const syncData = useCallback(async (force = false) => {
         if (isSyncing.current && !force) return;
@@ -83,6 +90,31 @@ export default function App() {
             isSyncing.current = false;
         }
     }, [user?.token]);
+
+    /**
+     * SOCKET.IO LIVE ENGINE
+     */
+    useEffect(() => {
+        socket.current = io(SOCKET_URL);
+
+        socket.current.on('connect', () => {
+            console.log("🟢 Connected to TalentBD Live Engine");
+        });
+
+        // Update the live user count
+        socket.current.on('user_count_update', (count) => {
+            setOnlineCount(count);
+        });
+
+        // Listen for real-time job alerts
+        socket.current.on('receive_job_alert', (newJob) => {
+            setAllJobs(prev => [newJob, ...prev]);
+            setLiveAlert(newJob);
+            setTimeout(() => setLiveAlert(null), 5000); 
+        });
+
+        return () => socket.current.disconnect();
+    }, []);
 
     useEffect(() => { 
         syncData(); 
@@ -128,17 +160,40 @@ export default function App() {
         <div className="App" style={styles.appContainer}>
             <Navbar setView={setView} user={user} handleLogout={handleLogout} />
             
-            {/* XP & WALLET OVERLAY */}
+            {/* LIVE NOTIFICATION TOAST */}
+            <AnimatePresence>
+                {liveAlert && (
+                    <motion.div 
+                        initial={{ x: 300, opacity: 0 }} 
+                        animate={{ x: 0, opacity: 1 }} 
+                        exit={{ x: 300, opacity: 0 }}
+                        style={styles.liveToast}
+                        onClick={() => { setSelectedJob(liveAlert); setView('job-detail'); setLiveAlert(null); }}
+                    >
+                        <Bell size={20} color={theme.colors.primary} />
+                        <div>
+                            <div style={{fontWeight: 'bold', fontSize: '13px'}}>New Job Posted!</div>
+                            <div style={{fontSize: '12px', color: theme.colors.textMuted}}>{liveAlert.title}</div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* XP, WALLET & LIVE USER OVERLAY */}
             <AnimatePresence>
                 {user && !['video-player', 'cv-builder', 'login', 'signup'].includes(view) && (
                     <motion.div 
                         initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -50, opacity: 0 }}
                         style={{...styles.earningBar, top: isMobile ? '70px' : '90px'}} 
-                        onClick={() => setView('dashboard')}
                     >
-                        <div style={styles.statChip}>🚀 {user.points || 0} XP</div>
+                        <div style={styles.statChip} onClick={() => setView('dashboard')}>🚀 {user.points || 0} XP</div>
                         <div style={styles.divider} />
-                        <div style={{...styles.statChip, color: theme.colors.success}}>৳ {user.walletBalance || 0}</div>
+                        <div style={{...styles.statChip, color: theme.colors.success}} onClick={() => setView('dashboard')}>৳ {user.walletBalance || 0}</div>
+                        <div style={styles.divider} />
+                        {/* Live User Count UI */}
+                        <div style={{...styles.statChip, color: theme.colors.primary, display: 'flex', alignItems: 'center', gap: '5px'}}>
+                           <Users size={14} /> {onlineCount}
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -245,9 +300,10 @@ export default function App() {
 const styles = {
     appContainer: { background: theme.colors.bgMain, minHeight: '100vh', display: 'flex', flexDirection: 'column' },
     mainContent: { flex: 1, width: '100%', maxWidth: '1440px', margin: '0 auto', padding: '0 20px' },
-    earningBar: { position: 'fixed', left: '50%', transform: 'translateX(-50%)', background: theme.colors.bgDark, borderRadius: '50px', padding: '12px 25px', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: theme.shadows.premium, cursor: 'pointer', zIndex: 999, border: `1px solid ${theme.colors.secondary}` },
+    earningBar: { position: 'fixed', left: '50%', transform: 'translateX(-50%)', background: theme.colors.bgDark, borderRadius: '50px', padding: '12px 25px', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: theme.shadows.premium, zIndex: 999, border: `1px solid ${theme.colors.secondary}` },
+    liveToast: { position: 'fixed', right: '20px', bottom: '20px', background: theme.colors.bgDark, borderLeft: `4px solid ${theme.colors.primary}`, padding: '15px 25px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: theme.shadows.premium, zIndex: 2000, cursor: 'pointer' },
     divider: { width: '1px', height: '14px', background: theme.colors.secondary },
-    statChip: { color: '#fff', fontSize: '14px', fontWeight: '800' },
+    statChip: { color: '#fff', fontSize: '14px', fontWeight: '800', cursor: 'pointer' },
     sidebarHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' },
     sidebarTitle: { fontSize: '11px', textTransform: 'uppercase', color: theme.colors.textMuted, fontWeight: '800', letterSpacing: '1px' },
     iconBtn: { background: theme.colors.bgMain, border: 'none', borderRadius: '10px', padding: '8px', cursor: 'pointer', color: theme.colors.primary, display: 'flex', alignItems: 'center' },
