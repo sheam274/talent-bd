@@ -7,12 +7,16 @@ const helmet = require('helmet');
 const http = require('http'); 
 const { Server } = require('socket.io'); 
 
-// Models
+// Models - Ensure these paths and filenames are exactly correct in your Kali Linux folders
 const Category = require('./models/Category'); 
 const Course = require('./models/Course'); 
-const Job = require('./models/Job'); // Ensure you have a Job model imported
+const Job = require('./models/Job');
 
 const app = express();
+
+// --- VERCEL/RENDER PROXY FIX ---
+app.set('trust proxy', 1); 
+
 const server = http.createServer(app); 
 
 /**
@@ -25,30 +29,26 @@ const io = new Server(server, {
             "https://talent-bd-13.vercel.app", 
             "http://localhost:3000", 
             "http://localhost:5173",
-            "http://192.168.0.106:3000",
             "http://127.0.0.1:3000"
         ],
-        methods: ["GET", "POST"]
-    }
+        methods: ["GET", "POST"],
+        credentials: true
+    },
+    // Required for stability on Render/Vercel
+    transports: ['websocket', 'polling'] 
 });
 
-// Pass Socket.io instance to Express so routes can use it via req.app.get('io')
 app.set('io', io);
 
 io.on('connection', (socket) => {
     console.log(`⚡ User Connected: ${socket.id}`);
-
-    // Update global user count
     io.emit('user_count_update', io.engine.clientsCount);
 
-    // This listener handles manual triggers from the client
     socket.on('new_job_posted', (jobData) => {
-        console.log('📢 Manual Broadcast for:', jobData.title);
-        io.emit('receive_job_alert', jobData); // io.emit sends to EVERYONE including sender
+        io.emit('receive_job_alert', jobData); 
     });
 
     socket.on('disconnect', () => {
-        console.log(`❌ User Disconnected: ${socket.id}`);
         io.emit('user_count_update', io.engine.clientsCount);
     });
 });
@@ -73,19 +73,18 @@ const allowedOrigins = [
     "https://talent-bd-13.vercel.app", 
     "http://localhost:3000", 
     "http://localhost:5173", 
-    "http://127.0.0.1:3000", 
-    "http://127.0.0.1:5173",
-    "http://192.168.0.106:3000",
-    "http://192.168.0.106:5173"
+    "http://127.0.0.1:3000"
 ];
 
 app.use(cors({
     origin: function (origin, callback) {
-        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-            callback(null, true);
-        } else {
-            callback(new Error('CORS blocked by TalentBD Engine Policy'));
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) === -1) {
+            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+            return callback(new Error(msg), false);
         }
+        return callback(null, true);
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true
@@ -95,27 +94,23 @@ app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
 /**
- * 4. DATABASE & REAL-TIME SEEDING
+ * 4. DATABASE & SEEDING
  */
 const seedData = async () => {
     try {
-        // 4a. Seed Categories
         const categoryCount = await Category.countDocuments();
         if (categoryCount === 0) {
-            const prebuiltSectors = [
-                { name: 'Government', group: 'job', icon: 'Shield', color: '#0f172a', priority: 10 },
-                { name: 'Banking', group: 'job', icon: 'DollarSign', color: '#10b981', priority: 9 },
-                { name: 'Software', group: 'job', icon: 'Code', color: '#2563eb', priority: 8 },
-                { name: 'Education', group: 'job', icon: 'BookOpen', color: '#f59e0b', priority: 7 }
-            ];
-            await Category.insertMany(prebuiltSectors);
+            await Category.insertMany([
+                { name: 'Government', group: 'job', icon: 'Shield', color: '#0f172a', priority: 10, isActive: true },
+                { name: 'Banking', group: 'job', icon: 'DollarSign', color: '#10b981', priority: 9, isActive: true },
+                { name: 'Software', group: 'job', icon: 'Code', color: '#2563eb', priority: 8, isActive: true }
+            ]);
             console.log("⭐ Taxonomy Seeded.");
         }
 
-        // 4b. Seed "Real" Jobs (This fixes your "no real job" issue)
         const jobCount = await Job.countDocuments();
         if (jobCount === 0) {
-            const fakeJobs = [
+            await Job.insertMany([
                 {
                     title: "MERN Stack Developer",
                     company: "Tech Solutions BD",
@@ -123,50 +118,24 @@ const seedData = async () => {
                     salary: "45,000 - 65,000 BDT",
                     category: "Software",
                     jobType: "Full-time",
-                    deadline: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // 15 days from now
-                    isLive: true
-                },
-                {
-                    title: "Senior Accountant",
-                    company: "Standard Bank Ltd",
-                    location: "Chittagong",
-                    salary: "Negotiable",
-                    category: "Banking",
-                    jobType: "Full-time",
-                    deadline: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+                    deadline: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
                     isLive: true
                 }
-            ];
-            await Job.insertMany(fakeJobs);
+            ]);
             console.log("💼 Initial Circulars Seeded.");
-        }
-
-        // 4c. Seed Courses
-        const courseCount = await Course.countDocuments();
-        if (courseCount === 0) {
-            await Course.create({ 
-                title: 'Full-Stack MERN Mastery', 
-                category: 'Software', 
-                instructorName: 'TalentBD Academy',
-                description: 'Build full-stack apps with MERN.',
-                videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-                skillTag: 'Web Development',
-                lessons: 20,
-                isActive: true,
-                group: 'learning'
-            });
-            console.log("📚 Courseware Seeded.");
         }
     } catch (err) {
         console.error("⚠️ Seeding Error:", err.message);
     }
 };
 
+// Use process.env.MONGO_URI - ensure this is set in your Render environment variables!
 mongoose.connect(process.env.MONGO_URI)
     .then(() => {
         console.log('✅ TalentBD Database Connected');
         seedData(); 
-    });
+    })
+    .catch(err => console.error("❌ Database Connection Failed:", err));
 
 /**
  * 5. ROUTE ARCHITECTURE
@@ -194,11 +163,12 @@ app.get('/', (req, res) => res.send('TalentBD Engine 2026 Active'));
 app.get('/api/health', (req, res) => {
     res.json({ 
         status: 'Online', 
+        database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
         activeUsers: io.engine.clientsCount 
     });
 });
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Engine & Live Circular Server Live on: ${PORT}`);
+server.listen(PORT, () => {
+    console.log(`🚀 Engine Live on Port: ${PORT}`);
 });

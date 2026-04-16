@@ -21,11 +21,13 @@ import AdminPostJob from './pages/AdminPostJob';
 // Utility Import
 import { theme } from './theme';
 
-const SOCKET_URL = window.location.hostname === 'localhost' 
-    ? "http://localhost:5000" 
-    : "https://talent-bd-backend.onrender.com";
+// --- CONFIGURATION ---
+// This uses your Vercel Environment Variable if present, otherwise defaults to local.
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
+    (window.location.hostname === 'localhost' ? "http://localhost:5000" : "https://talent-bd-backend.onrender.com");
 
-const API_BASE = `${SOCKET_URL}/api`;
+const SOCKET_URL = BASE_URL;
+const API_BASE = `${BASE_URL}/api`;
 
 export default function App() {
     // 1. User Persistence & Auth
@@ -48,11 +50,9 @@ export default function App() {
     
     // 4. Live States (Sockets)
     const [liveAlert, setLiveAlert] = useState(null);
-    const [onlineCount, setOnlineCount] = useState(0); // Tracking live users
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-// Use API_BASE_URL in your fetch/axios calls
+    const [onlineCount, setOnlineCount] = useState(0);
 
-    // 5. Admin Helpers
+    // 5. Admin & Logic Helpers
     const [newCatName, setNewCatName] = useState('');
     const [newCatGroup, setNewCatGroup] = useState('job');
     const isSyncing = useRef(false);
@@ -97,25 +97,29 @@ export default function App() {
      * SOCKET.IO LIVE ENGINE
      */
     useEffect(() => {
-        socket.current = io(SOCKET_URL);
+        // Initialize socket connection
+        socket.current = io(SOCKET_URL, {
+            transports: ['websocket'], // Faster, more reliable for Render/Vercel
+            reconnectionAttempts: 5
+        });
 
         socket.current.on('connect', () => {
             console.log("🟢 Connected to TalentBD Live Engine");
         });
 
-        // Update the live user count
         socket.current.on('user_count_update', (count) => {
             setOnlineCount(count);
         });
 
-        // Listen for real-time job alerts
         socket.current.on('receive_job_alert', (newJob) => {
             setAllJobs(prev => [newJob, ...prev]);
             setLiveAlert(newJob);
             setTimeout(() => setLiveAlert(null), 5000); 
         });
 
-        return () => socket.current.disconnect();
+        return () => {
+            if (socket.current) socket.current.disconnect();
+        };
     }, []);
 
     useEffect(() => { 
@@ -131,7 +135,6 @@ export default function App() {
         setView('home'); 
     };
 
-    // --- SECTOR MANAGEMENT ---
     const handleAddCategory = async () => {
         if (!newCatName.trim()) return;
         try {
@@ -162,7 +165,6 @@ export default function App() {
         <div className="App" style={styles.appContainer}>
             <Navbar setView={setView} user={user} handleLogout={handleLogout} />
             
-            {/* LIVE NOTIFICATION TOAST */}
             <AnimatePresence>
                 {liveAlert && (
                     <motion.div 
@@ -181,7 +183,6 @@ export default function App() {
                 )}
             </AnimatePresence>
 
-            {/* XP, WALLET & LIVE USER OVERLAY */}
             <AnimatePresence>
                 {user && !['video-player', 'cv-builder', 'login', 'signup'].includes(view) && (
                     <motion.div 
@@ -192,7 +193,6 @@ export default function App() {
                         <div style={styles.divider} />
                         <div style={{...styles.statChip, color: theme.colors.success}} onClick={() => setView('dashboard')}>৳ {user.walletBalance || 0}</div>
                         <div style={styles.divider} />
-                        {/* Live User Count UI */}
                         <div style={{...styles.statChip, color: theme.colors.primary, display: 'flex', alignItems: 'center', gap: '5px'}}>
                            <Users size={14} /> {onlineCount}
                         </div>
@@ -211,7 +211,6 @@ export default function App() {
                         {view === 'login' && <Login setUser={setUser} setView={setView} />}
                         {view === 'signup' && <Signup setUser={setUser} setView={setView} />}
                         
-                        {/* THE INDUSTRY HUB (JOBS) */}
                         {view === 'jobs' && (
                             <div className="sidebar-layout">
                                 <aside className="sticky-sidebar">
@@ -253,7 +252,6 @@ export default function App() {
                         {view === 'job-detail' && <JobDescription job={selectedJob} setView={setView} user={user} />}
                         {view === 'admin-post' && <AdminPostJob user={user} setView={setView} />}
 
-                        {/* SKILL HUB */}
                         {view === 'learning' && (
                             <LearningHub 
                                 courses={allCourses} 
@@ -264,12 +262,10 @@ export default function App() {
                         )}
                         {view === 'video-player' && <VideoPlayer course={currentCourse} user={user} setView={setView} onVerify={() => syncData(true)} />}
                         
-                        {/* USER SYSTEMS */}
                         {view === 'dashboard' && <WalletDashboardMain user={user} setView={setView} setUser={setUser} />}
                         {view === 'cv-builder' && <CVBuilder user={user} setView={setView} />}
                         {view === 'profile' && <UserProfile user={user} setView={setView} />}
 
-                        {/* ADMIN TAXONOMY EDITOR */}
                         {user?.role === 'admin' && view === 'admin-categories' && (
                             <div className="admin-hub-card">
                                 <div style={styles.adminHeader}><Shield size={22} color={theme.colors.primary} /><h2>Platform Taxonomy</h2></div>
