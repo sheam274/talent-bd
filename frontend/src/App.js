@@ -49,6 +49,8 @@ export default function App() {
     // 4. Live States (Sockets)
     const [liveAlert, setLiveAlert] = useState(null);
     const [onlineCount, setOnlineCount] = useState(0); // Tracking live users
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+// Use API_BASE_URL in your fetch/axios calls
 
     // 5. Admin Helpers
     const [newCatName, setNewCatName] = useState('');
