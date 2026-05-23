@@ -53,27 +53,55 @@ router.post('/categories', async (req, res) => {
 /**
  * GET /api/courses
  * Handles the main Learning Hub grid with responsive filtering
+ * Returns courses with proper categorization for frontend
  */
 router.get('/', async (req, res) => {
     try {
         const { category, search } = req.query;
-        let query = {};
+        let query = { isActive: true };
+        const andConditions = [];
 
-        // Sync: Matches the 'tag' field in your LearningHub.js
+        // Filter by category (matches both 'tag' format from frontend and 'skillTag' in DB)
         if (category && category !== 'All') {
-            query.tag = category; 
+            andConditions.push({
+                $or: [
+                    { skillTag: category.toLowerCase() },
+                    { category: category }
+                ]
+            });
         }
         
-        // Sync: Responsive live search
+        // Responsive live search on title and description
         if (search) {
-            query.title = { $regex: search, $options: 'i' };
+            andConditions.push({
+                $or: [
+                    { title: { $regex: search, $options: 'i' } },
+                    { description: { $regex: search, $options: 'i' } }
+                ]
+            });
         }
 
-        const courses = await Course.find(query).sort({ createdAt: -1 });
+        // Combine all conditions with $and if there are any
+        if (andConditions.length > 0) {
+            query.$and = andConditions;
+        }
 
-        // Sending direct array to maintain Hub responsiveness
-        res.json(courses);
+        const courses = await Course.find(query)
+            .populate('categoryRef')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Transform courses to add 'tag' field for frontend compatibility
+        const transformedCourses = courses.map(course => ({
+            ...course,
+            tag: course.skillTag || course.category || 'General',
+            video: course.videoUrl, // Frontend expects 'video' field
+            duration: course.duration || '15 min'
+        }));
+
+        res.json(transformedCourses);
     } catch (err) {
+        console.error("❌ Course Fetch Error:", err);
         res.status(500).json({ error: "Course Engine Sync Error" });
     }
 });
@@ -81,22 +109,31 @@ router.get('/', async (req, res) => {
 // POST: Add New Module (Unified with featured content structure)
 router.post('/', async (req, res) => {
     try {
-        const { title, video, tag, description, duration } = req.body;
+        const { title, video, videoUrl, tag, skillTag, description, duration } = req.body;
         
-        if (!title || !video) return res.status(400).json({ error: "Title and Video URL required" });
+        if (!title || !video && !videoUrl) {
+            return res.status(400).json({ error: "Title and Video URL required" });
+        }
+
+        // Support both 'video' and 'videoUrl' field names from frontend
+        const finalVideoUrl = video || videoUrl;
+        const finalTag = tag || skillTag || 'General';
 
         const newCourse = new Course({
             title,
-            video,
-            tag: tag || 'General',
+            videoUrl: finalVideoUrl,
+            skillTag: finalTag.toLowerCase().trim(),
+            category: finalTag,
             description: description || 'Premium learning module for TalentBD users.',
             duration: duration || '15 min',
-            thumbnail: req.body.thumbnail || '' // Frontend getYouTubeThumb handles this if empty
+            thumbnail: req.body.thumbnail || '',
+            instructor: req.body.instructor || null // Will be set by admin
         });
 
         await newCourse.save();
         res.status(201).json({ success: true, course: newCourse });
     } catch (err) {
+        console.error("❌ Course Creation Error:", err);
         res.status(400).json({ error: "Failed to inject new course into engine" });
     }
 });

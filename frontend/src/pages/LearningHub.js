@@ -23,19 +23,20 @@ export default function LearningHub({ onStartCourse, user }) {
         setLoading(true);
         try {
             const [catRes, courseRes] = await Promise.all([
-                axios.get(`${API_BASE}/categories?group=learning`),
-                axios.get(`${API_BASE}/admin/learning-hub`)
+                axios.get(`${API_BASE}/courses/categories?group=learning`),
+                axios.get(`${API_BASE}/courses`)
             ]);
 
-            const rawCats = catRes.data.categories || [];
+            const rawCats = catRes.data || [];
             setCategories(rawCats);
 
-            const rawCourses = courseRes.data.videos || courseRes.data.courses || [];
+            // courseRes.data is now a direct array from courseRoutes
+            const rawCourses = courseRes.data || [];
             // If DB is empty, use the high-quality featuredContent as fallback
             setCourses(rawCourses.length > 0 ? rawCourses : featuredContent);
 
         } catch (err) {
-            console.warn("⚠️ Sync Pending: Using local high-quality modules.");
+            console.warn("⚠️ Sync Pending: Using local high-quality modules.", err);
             setCourses(featuredContent);
         } finally {
             setLoading(false);
@@ -53,7 +54,7 @@ export default function LearningHub({ onStartCourse, user }) {
     const addCategory = async () => {
         if (!newCat) return;
         try {
-            await axios.post(`${API_BASE}/categories`, { 
+            await axios.post(`${API_BASE}/courses/categories`, { 
                 name: newCat, 
                 group: 'learning',
                 icon: '📚' 
@@ -65,7 +66,7 @@ export default function LearningHub({ onStartCourse, user }) {
 
     const archiveCategory = async (id) => {
         try {
-            await axios.patch(`${API_BASE}/admin/archive/category/${id}`);
+            await axios.delete(`${API_BASE}/admin/archive/category/${id}`);
             syncData();
         } catch (err) { alert("Archive operation failed."); }
     };
@@ -207,10 +208,10 @@ export default function LearningHub({ onStartCourse, user }) {
 
 // --- INITIAL DATA (100+ Videos will load from MongoDB, these are fallback/featured) ---
 const featuredContent = [
-    { _id: 'f1', title: 'Full Stack Web Development 2026', video: 'https://www.youtube.com/watch?v=QOOLshsQvpY', tag: 'Fullstack', description: 'Comprehensive roadmap for the 2026 tech ecosystem.', duration: '8h 51m' },
-    { _id: 'f2', title: 'Modern MERN Architecture', video: 'https://www.youtube.com/watch?v=GxmfcnU3feo', tag: 'MERN', description: 'Deep dive into scalable Node.js patterns for 2026.', duration: '15 min' },
-    { _id: 'f3', title: 'Advanced React 19 Patterns', video: 'https://www.youtube.com/watch?v=Zq5fmkH0T78', tag: 'Frontend', description: 'Server components, actions, and modern hydration.', duration: '5h 23m' },
-    { _id: 'f4', title: 'Next.js 15 Masterclass', video: 'https://www.youtube.com/watch?v=ek7hmv5PVV8', tag: 'NextJS', description: 'Building production-ready apps with App Router.', duration: '7h 53m' }
+    { _id: 'f1', title: 'Full Stack Web Development 2026', video: 'https://www.youtube.com/watch?v=QOOLshsQvpY', videoUrl: 'https://www.youtube.com/embed/QOOLshsQvpY', tag: 'Fullstack', skillTag: 'fullstack', description: 'Comprehensive roadmap for the 2026 tech ecosystem.', duration: '8h 51m' },
+    { _id: 'f2', title: 'Modern MERN Architecture', video: 'https://www.youtube.com/watch?v=GxmfcnU3feo', videoUrl: 'https://www.youtube.com/embed/GxmfcnU3feo', tag: 'MERN', skillTag: 'mern', description: 'Deep dive into scalable Node.js patterns for 2026.', duration: '15 min' },
+    { _id: 'f3', title: 'Advanced React 19 Patterns', video: 'https://www.youtube.com/watch?v=Zq5fmkH0T78', videoUrl: 'https://www.youtube.com/embed/Zq5fmkH0T78', tag: 'Frontend', skillTag: 'frontend', description: 'Server components, actions, and modern hydration.', duration: '5h 23m' },
+    { _id: 'f4', title: 'Next.js 15 Masterclass', video: 'https://www.youtube.com/watch?v=ek7hmv5PVV8', videoUrl: 'https://www.youtube.com/embed/ek7hmv5PVV8', tag: 'NextJS', skillTag: 'nextjs', description: 'Building production-ready apps with App Router.', duration: '7h 53m' }
 ];
 
 const styles = {
