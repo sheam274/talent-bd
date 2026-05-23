@@ -6,7 +6,9 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION ---
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = window.location.hostname === 'localhost' 
+    ? "http://localhost:5000/api" 
+    : "https://talent-bd-backend.onrender.com/api";
 
 export default function LearningHub({ onStartCourse, user }) {
     const [loading, setLoading] = useState(true);
@@ -27,15 +29,26 @@ export default function LearningHub({ onStartCourse, user }) {
                 axios.get(`${API_BASE}/admin/learning-hub`)
             ]);
 
-            const rawCats = catRes.data.categories || [];
-            setCategories(rawCats);
+            // Handle categories response
+            const rawCats = catRes.data.categories || catRes.data || [];
+            const cats = Array.isArray(rawCats) ? rawCats : [];
+            setCategories(cats);
 
-            const rawCourses = courseRes.data.videos || courseRes.data.courses || [];
+            // Handle courses/videos response with multiple fallbacks
+            let rawCourses = [];
+            if (courseRes.data.videos && Array.isArray(courseRes.data.videos)) {
+                rawCourses = courseRes.data.videos;
+            } else if (courseRes.data.courses && Array.isArray(courseRes.data.courses)) {
+                rawCourses = courseRes.data.courses;
+            } else if (Array.isArray(courseRes.data)) {
+                rawCourses = courseRes.data;
+            }
+            
             // If DB is empty, use the high-quality featuredContent as fallback
             setCourses(rawCourses.length > 0 ? rawCourses : featuredContent);
 
         } catch (err) {
-            console.warn("⚠️ Sync Pending: Using local high-quality modules.");
+            console.warn("⚠️ Sync Pending: Using local high-quality modules.", err);
             setCourses(featuredContent);
         } finally {
             setLoading(false);

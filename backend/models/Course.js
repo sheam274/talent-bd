@@ -9,7 +9,7 @@ const CourseSchema = new mongoose.Schema({
     instructor: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true
+        default: null
     },
     /**
      * SYNC LOGIC: 
@@ -25,7 +25,7 @@ const CourseSchema = new mongoose.Schema({
     categoryRef: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Category',
-        required: true // Ensures every course is linked to an Admin-created category
+        default: null
     },
     skillTag: { 
         type: String, 
