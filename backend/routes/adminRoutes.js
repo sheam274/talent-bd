@@ -129,6 +129,35 @@ router.post('/courses', async (req, res) => {
 });
 
 /**
+ * 4.5. LEARNING HUB DATA ENDPOINT
+ * Unified endpoint for fetching all learning hub content with proper response wrapping.
+ * Used by frontend LearningHub component.
+ */
+router.get('/learning-hub', async (req, res) => {
+    try {
+        const courses = await Course.find({ isActive: true })
+            .populate('categoryRef')
+            .sort({ createdAt: -1 })
+            .lean();
+        
+        res.json({
+            success: true,
+            videos: courses,
+            courses: courses,
+            count: courses.length
+        });
+    } catch (err) {
+        console.error("❌ Learning Hub Fetch Error:", err);
+        res.status(500).json({ 
+            success: false, 
+            error: "Failed to fetch learning hub content",
+            videos: [],
+            courses: []
+        });
+    }
+});
+
+/**
  * 5. UNIVERSAL ARCHIVE SYSTEM (Soft Delete)
  * Uses a dynamic parameter to archive Jobs, Courses, or Categories.
  */

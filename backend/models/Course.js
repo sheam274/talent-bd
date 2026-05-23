@@ -9,7 +9,7 @@ const CourseSchema = new mongoose.Schema({
     instructor: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true
+        default: null
     },
     /**
      * SYNC LOGIC: 
@@ -56,6 +56,11 @@ const CourseSchema = new mongoose.Schema({
         type: String, 
         required: [true, 'Description is required'],
         maxLength: [2000, 'Description cannot exceed 2000 characters'] 
+    },
+    isActive: { 
+        type: Boolean, 
+        default: true, 
+        index: true 
     },
     rewardXP: { type: Number, default: 100 },
     rewardWallet: { type: Number, default: 50 },

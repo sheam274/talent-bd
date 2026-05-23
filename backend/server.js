@@ -103,7 +103,11 @@ const seedData = async () => {
             await Category.insertMany([
                 { name: 'Government', group: 'job', icon: 'Shield', color: '#0f172a', priority: 10, isActive: true },
                 { name: 'Banking', group: 'job', icon: 'DollarSign', color: '#10b981', priority: 9, isActive: true },
-                { name: 'Software', group: 'job', icon: 'Code', color: '#2563eb', priority: 8, isActive: true }
+                { name: 'Software', group: 'job', icon: 'Code', color: '#2563eb', priority: 8, isActive: true },
+                { name: 'MERN', group: 'learning', icon: '📚', color: '#2563eb', priority: 10, isActive: true },
+                { name: 'Frontend', group: 'learning', icon: '📚', color: '#2563eb', priority: 9, isActive: true },
+                { name: 'Backend', group: 'learning', icon: '📚', color: '#2563eb', priority: 8, isActive: true },
+                { name: 'NextJS', group: 'learning', icon: '📚', color: '#2563eb', priority: 7, isActive: true }
             ]);
             console.log("⭐ Taxonomy Seeded.");
         }
@@ -117,12 +121,80 @@ const seedData = async () => {
                     location: "Dhaka (Remote)",
                     salary: "45,000 - 65,000 BDT",
                     category: "Software",
-                    jobType: "Full-time",
+                    jobType: "full-time",
                     deadline: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
-                    isLive: true
+                    description: "We are looking for an experienced MERN Stack Developer to join our team. You should have strong knowledge of MongoDB, Express, React, and Node.js.",
+                    isActive: true
+                },
+                {
+                    title: "Frontend React Developer",
+                    company: "Digital Solutions Inc",
+                    location: "Dhaka, Bangladesh",
+                    salary: "40,000 - 60,000 BDT",
+                    category: "Software",
+                    jobType: "full-time",
+                    deadline: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000),
+                    description: "Seeking a talented React Developer with experience in modern JavaScript frameworks and responsive design.",
+                    isActive: true
                 }
             ]);
             console.log("💼 Initial Circulars Seeded.");
+        }
+
+        // Seed courses/learning hub content
+        const courseCount = await Course.countDocuments();
+        if (courseCount === 0) {
+            const mernCat = await Category.findOne({ name: 'MERN', group: 'learning' });
+            const frontendCat = await Category.findOne({ name: 'Frontend', group: 'learning' });
+            const backendCat = await Category.findOne({ name: 'Backend', group: 'learning' });
+            
+            await Course.insertMany([
+                {
+                    title: 'Full Stack Web Development 2026',
+                    videoUrl: 'https://www.youtube.com/embed/QOOLshsQvpY',
+                    skillTag: 'fullstack',
+                    category: 'Fullstack',
+                    categoryRef: mernCat?._id || null,
+                    description: 'Comprehensive roadmap for the 2026 tech ecosystem. Learn how to build modern web applications.',
+                    instructor: null,
+                    isActive: true,
+                    price: 0
+                },
+                {
+                    title: 'Modern MERN Architecture',
+                    videoUrl: 'https://www.youtube.com/embed/GxmfcnU3feo',
+                    skillTag: 'mern',
+                    category: 'MERN',
+                    categoryRef: mernCat?._id || null,
+                    description: 'Deep dive into scalable Node.js patterns for 2026. Best practices for building MERN applications.',
+                    instructor: null,
+                    isActive: true,
+                    price: 0
+                },
+                {
+                    title: 'Advanced React 19 Patterns',
+                    videoUrl: 'https://www.youtube.com/embed/Zq5fmkH0T78',
+                    skillTag: 'frontend',
+                    category: 'Frontend',
+                    categoryRef: frontendCat?._id || null,
+                    description: 'Server components, actions, and modern hydration techniques in React 19.',
+                    instructor: null,
+                    isActive: true,
+                    price: 0
+                },
+                {
+                    title: 'Next.js 15 Masterclass',
+                    videoUrl: 'https://www.youtube.com/embed/ek7hmv5PVV8',
+                    skillTag: 'nextjs',
+                    category: 'NextJS',
+                    categoryRef: backendCat?._id || null,
+                    description: 'Building production-ready apps with App Router and the latest Next.js 15 features.',
+                    instructor: null,
+                    isActive: true,
+                    price: 0
+                }
+            ]);
+            console.log("📚 Learning Hub Courses Seeded.");
         }
     } catch (err) {
         console.error("⚠️ Seeding Error:", err.message);
