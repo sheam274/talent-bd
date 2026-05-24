@@ -64,7 +64,8 @@ const CourseSchema = new mongoose.Schema({
         options: { type: [String], validate: { validator: (v) => v.length >= 2, message: 'Min 2 options' } },
         correctAnswer: { type: Number, required: true }
     }],
-    verifiedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
+    verifiedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    isActive: { type: Boolean, default: true, index: true }
 }, { 
     timestamps: true,
     toJSON: { virtuals: true }, 
