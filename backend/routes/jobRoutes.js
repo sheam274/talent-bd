@@ -21,6 +21,7 @@ router.get('/', async (req, res) => {
 
         // Filter for active deadlines only if requested
         if (isLive === 'true') {
+            query.isLive = true;
             query.deadline = { $gte: now };
         }
 

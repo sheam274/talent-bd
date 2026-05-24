@@ -1,0 +1,7 @@
+nohup: ignoring input
+
+> talentbd-backend@2.0.26 start
+> node server.js
+
+🚀 Engine Live on Port: 5000
+✅ TalentBD Database Connected

@@ -94,6 +94,7 @@ router.post('/jobs', async (req, res) => {
             isRemote: isRemoteJob,
             categoryRef: categoryDoc ? categoryDoc._id : null,
             isActive: true,
+            isLive: true,
             // Default 30-day deadline if none provided
             deadline: req.body.deadline ? new Date(req.body.deadline) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
         };
@@ -110,7 +111,28 @@ router.post('/jobs', async (req, res) => {
 });
 
 /**
- * 4. COURSE ARCHITECT
+ * 4. LEARNING HUB ENGINE
+ * Fetches all courses for the Learning Hub with categories
+ */
+router.get('/learning-hub', async (req, res) => {
+    try {
+        const courses = await Course.find({ isActive: true })
+            .populate('categoryRef')
+            .sort({ createdAt: -1 });
+        
+        res.json({ 
+            success: true, 
+            videos: courses,
+            courses: courses,
+            count: courses.length
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "Learning hub sync failed" });
+    }
+});
+
+/**
+ * 5. COURSE ARCHITECT
  * Deploys new video modules with attached quiz logic.
  */
 router.post('/courses', async (req, res) => {
@@ -129,7 +151,29 @@ router.post('/courses', async (req, res) => {
 });
 
 /**
- * 5. UNIVERSAL ARCHIVE SYSTEM (Soft Delete)
+ * 6. ARCHIVE CATEGORY
+ * Soft delete for categories
+ */
+router.patch('/archive/category/:id', async (req, res) => {
+    try {
+        const updated = await Category.findByIdAndUpdate(
+            req.params.id,
+            { isActive: false },
+            { new: true }
+        );
+
+        if (!updated) {
+            return res.status(404).json({ success: false, error: "Category not found" });
+        }
+
+        res.json({ success: true, message: "Category archived successfully." });
+    } catch (err) {
+        res.status(400).json({ success: false, error: "Archive operation failed" });
+    }
+});
+
+/**
+ * 7. UNIVERSAL ARCHIVE SYSTEM (Soft Delete)
  * Uses a dynamic parameter to archive Jobs, Courses, or Categories.
  */
 router.delete('/archive/:type/:id', async (req, res) => {

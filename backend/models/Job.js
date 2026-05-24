@@ -39,6 +39,7 @@ const jobSchema = new mongoose.Schema({
     deadline: { type: Date, required: [true, 'Application deadline is required'], index: true },
     isFeatured: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true, index: true },
+    isLive: { type: Boolean, default: true, index: true },
 
     applicants: [{
         user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -94,12 +95,6 @@ jobSchema.virtual('daysRemaining').get(function() {
     if (!this.deadline) return 0;
     const diff = new Date(this.deadline).getTime() - Date.now();
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-});
-
-// Automatically checks if the job should be visible to users
-jobSchema.virtual('isLive').get(function() {
-    const now = new Date();
-    return this.isActive && this.deadline && new Date(this.deadline) >= now;
 });
 
 // --- 4. PERFORMANCE TEXT INDEX ---
